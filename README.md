@@ -22,21 +22,18 @@ Desalinated water → Remineralization → Closed reservoir → Supply pipe → 
 pH is reported on the activity scale, `pH = −log₁₀(γ₁[H⁺])`. At `I = 0` the model
 reduces exactly to the infinite-dilution case.
 
-## Two versions, switchable
+## Entry points
 
-The original project is kept in the repository, unmodified, alongside the
-enhanced build. There are three possible entry points:
+The deployed app serves the enhanced version and only that — there is no
+control for switching versions. The original project is still kept in the
+repository, unmodified, and still runs on its own if you want to compare them
+locally.
 
 | Entry point | Serves |
 |---|---|
-| `streamlit_app.py` | the enhanced version only |
-| `app_co2_units_fixed.py` | the original version only |
-| `launcher.py` | **both**, switchable at runtime from the sidebar |
-
-`launcher.py` runs whichever version you pick without altering either file, and
-writes the choice to the URL (`?app=original`) so a specific version can be
-linked to. Use it if you want one deployment that can be flipped back to the
-original at any time.
+| `launcher.py` | the enhanced version (what the deployment runs) |
+| `streamlit_app.py` | the enhanced version, run directly |
+| `app_co2_units_fixed.py` | the original version, for comparison |
 
 ## Running it on your own computer
 
@@ -68,8 +65,8 @@ open that address yourself. Press `Ctrl+C` in the terminal to stop it.
 The first install takes a couple of minutes (it downloads numpy, scipy, pandas,
 plotly and streamlit). After that, startup is a few seconds.
 
-To run one specific version instead of the switcher, replace `launcher.py`
-with `streamlit_app.py` (enhanced) or `app_co2_units_fixed.py` (original).
+To run the original build for comparison, replace `launcher.py` with
+`app_co2_units_fixed.py`.
 
 ### No Python? 
 
@@ -81,15 +78,12 @@ installed at all.
 
 1. Go to <https://share.streamlit.io> and sign in with GitHub.
 2. **New app** → pick this repository.
-3. Set **Main file path** to `launcher.py` (or either single-version file).
+3. Set **Main file path** to `launcher.py` (or `streamlit_app.py` — both serve
+   the enhanced version).
 4. **Deploy.**
 
 `requirements.txt` and `.streamlit/config.toml` are already set up; no secrets
 are required. The first build takes 2–3 minutes.
-
-**Switching which version is live** — either flip the sidebar control if you
-deployed `launcher.py`, or change *Main file path* in the app's settings on
-Streamlit Cloud and let it redeploy. No code changes either way.
 
 ## Verifying the model
 
@@ -104,7 +98,7 @@ textbook calcite/atmosphere benchmark, internal consistency, mass balances,
 process-unit behaviour, and a cross-check against PHREEQC where
 `phreeqpython` is installed.
 
-## A note on the feed water
+## A note on the desalinated water
 
 pH, alkalinity and total inorganic carbon (C⊤) are linked by the carbonate
 equilibrium — only **two** are independent. The sidebar therefore asks for two and

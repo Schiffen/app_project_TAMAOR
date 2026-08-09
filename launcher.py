@@ -1,30 +1,26 @@
 """
-Version switcher.
-=================
+Deployment entry point.
+=======================
 
-An optional entry point that can serve EITHER version of the simulator from a
-single deployment, so the enhanced build and the original can be compared side
-by side — or the original can be made the live one again — without editing any
-code or redeploying.
+Runs the simulator. That is the whole job.
 
     python -m streamlit run launcher.py
 
-Pick the version from the control at the top of the sidebar. The choice is
-written to the URL (`?app=original`), so a particular version can be linked to
-or bookmarked directly.
+This file used to offer a sidebar control that switched the deployment between
+the enhanced build and the original one. It no longer does: the deployed app
+serves the enhanced version and nothing else, with no way to switch away from
+it, so that anyone opening the published link sees one application rather than
+a choice they have no basis to make.
 
-Nothing here modifies either application: each one is executed exactly as it
-would be if run on its own. The only interference is that `set_page_config` is
-neutralised for the inner app, because Streamlit permits that call once per
-session and this launcher has already made it.
+`app_co2_units_fixed.py` is still in the repository and still runs on its own
+if you want to compare the two locally:
 
-You do NOT have to use this file. Running either application directly still
-works, and on Streamlit Community Cloud the "Main file path" setting can point
-at any of the three entry points:
+    python -m streamlit run app_co2_units_fixed.py
 
-    streamlit_app.py         enhanced version only
-    app_co2_units_fixed.py   original version only
-    launcher.py              both, switchable at runtime
+Nothing here modifies the application: it is executed exactly as it would be if
+run directly. The only interference is that `set_page_config` is neutralised
+for the inner script, because Streamlit permits that call once per session and
+this launcher has already made it.
 """
 import os
 import runpy
@@ -32,21 +28,7 @@ import runpy
 import streamlit as st
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-
-VERSIONS = {
-    "enhanced": {
-        "label": "Enhanced simulator",
-        "file": "streamlit_app.py",
-        "note": "Activity-corrected chemistry, self-consistent feed water, "
-                "interactive charts.",
-    },
-    "original": {
-        "label": "Original (unmodified)",
-        "file": "app_co2_units_fixed.py",
-        "note": "The project exactly as originally written. Nothing altered.",
-    },
-}
-DEFAULT = "enhanced"
+APP = "streamlit_app.py"
 
 st.set_page_config(
     page_title="Remineralization Simulator",
@@ -55,36 +37,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# The URL is the source of truth, so a version can be linked to directly.
-_q = st.query_params.get("app")
-if _q not in VERSIONS:
-    _q = DEFAULT
-if st.session_state.get("_version") != _q:
-    st.session_state["_version"] = _q
-
-keys = list(VERSIONS)
-with st.sidebar:
-    chosen = st.radio(
-        "Version",
-        keys,
-        index=keys.index(st.session_state["_version"]),
-        format_func=lambda k: VERSIONS[k]["label"],
-        key="_version_radio",
-        help="Switch between the enhanced build and the untouched original. "
-             "Both read the same inputs; only the model and interface differ.",
-    )
-    st.caption(VERSIONS[chosen]["note"])
-    st.divider()
-
-if chosen != st.session_state["_version"]:
-    st.session_state["_version"] = chosen
-    st.query_params["app"] = chosen
-    st.rerun()
-
-target = os.path.join(HERE, VERSIONS[chosen]["file"])
+target = os.path.join(HERE, APP)
 if not os.path.exists(target):
-    st.error(f"**{VERSIONS[chosen]['file']} is missing.** Both application files "
-             f"must sit next to this launcher.")
+    st.error(f"**{APP} is missing.** It must sit next to this launcher.")
     st.stop()
 
 # Streamlit allows set_page_config once per session and the launcher has used

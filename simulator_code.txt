@@ -44,21 +44,17 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Diverging axis for the saturation index: the one number this whole tool is
-# about. Cool = the water dissolves carbonate, warm = it deposits it.
-C_AGGR_STRONG = "#155E75"
-C_AGGR = "#0891B2"
-C_AGGR_SOFT = "#A5E8F5"
-C_NEUTRAL = "#94A3B8"
-C_SCALE_SOFT = "#FBC69B"
-C_SCALE = "#C2410C"
-C_SCALE_STRONG = "#7C2D12"
-C_BALANCED = "#15803D"
+# Three-state axis for the carbonate condition of the water — the one thing
+# this whole tool computes. Blue = the water dissolves carbonate, green = it is
+# inside the band the drinking-water standard asks for, red = it deposits.
+C_AGGR = "#0891B2"          # undersaturated / aggressive
+C_BALANCED = "#15803D"      # inside the target band
+C_SCALE = "#C2410C"         # oversaturated / scaling
+C_NEUTRAL = "#94A3B8"       # not available
 
-# Teal / orange / green above are RESERVED: they encode saturation state and
-# nothing else. Categorical series therefore draw from the remaining hue space,
-# so a line on a chart can never be mistaken for a state. Validated all-pairs
-# against the reserved three: normal-vision separation 16.8 worst case.
+# The three above are RESERVED: they encode carbonate condition and nothing
+# else. Categorical series therefore draw from the remaining hue space, so a
+# line on a chart can never be mistaken for a state.
 SERIES = ["#4F46E5", "#A21CAF", "#334E5C"]     # indigo, fuchsia, graphite
 PRIMARY = "#334E5C"                            # buttons / neutral marks
 
@@ -68,15 +64,14 @@ INK_MUTED = "#5F7C87"
 LINE = "#DCE7EC"
 CARD = "#FFFFFF"
 
-SI_COLORSCALE = [
-    [0.00, C_AGGR_STRONG],
-    [0.28, C_AGGR],
-    [0.44, C_AGGR_SOFT],
-    [0.50, "#EEF3F5"],
-    [0.56, C_SCALE_SOFT],
-    [0.72, C_SCALE],
-    [1.00, C_SCALE_STRONG],
-]
+# Illustration palette. Kept clear of the reserved three so a picture can never
+# be read as a state reading. Water is ONE blue everywhere in the train; what
+# changes from stage to stage is what is dissolved in it, drawn as calcite
+# grains in a limestone cream. That is the actual subject of the simulation.
+W_LIGHT, W_MID, W_DEEP = "#8ED3F2", "#2E8FCB", "#12496E"
+MIN_FILL, MIN_EDGE = "#F2DCB0", "#B8863C"      # calcite / limestone
+STEEL, STEEL_DARK = "#8FA6B2", "#33505E"       # equipment
+GAS_FILL = "#EAF2F6"                           # headspace
 
 st.markdown(
     f"""
@@ -115,52 +110,66 @@ html, body, [class*="css"], [data-testid="stAppViewContainer"] {{
     margin: .7rem 0 0 0; }}
 
 /* ---- wordmark ---------------------------------------------------------- */
-.brand {{ display:flex; align-items:center; gap:1rem; }}
+.brand {{ display:flex; align-items:center; gap:1.05rem; }}
 .brand svg {{ flex:none; }}
 h1.wm {{ font-size: 2.15rem; font-weight: 700; line-height: 1.16; letter-spacing: -.03em;
     color: {INK}; margin: 0; padding: .06em 0 0 0; }}
 
-
-/* ---- headline figures beside the title -------------------------------- */
-.plant {{ display: flex; gap: 2.1rem; justify-content: flex-end; align-items: baseline;
-    padding-top: .9rem; }}
-.plant .fig {{ text-align: right; }}
-.plant .fk {{ font-size: .68rem; font-weight: 600; letter-spacing: .085em;
-    text-transform: uppercase; color: {INK_MUTED}; white-space: nowrap; }}
-.plant .fv {{ font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 1.72rem;
-    font-weight: 600; letter-spacing: -.03em; line-height: 1.15;
-    font-variant-numeric: tabular-nums; }}
-
 /* ---- process train ---------------------------------------------------- */
-.train {{ display: flex; align-items: stretch; gap: 0; margin: .2rem 0 0 0; }}
-.stage {{ flex: 1 1 0; text-decoration: none; display: block; padding: .6rem .4rem .55rem .4rem;
-    border: 1px solid {LINE}; background: #FAFCFD; position: relative;
-    transition: background .2s ease, box-shadow .22s cubic-bezier(.2,.8,.3,1); }}
-.stage:first-child {{ border-radius: 14px 0 0 14px; }}
-.stage:last-child  {{ border-radius: 0 14px 14px 0; }}
-.stage + .stage {{ border-left: none; }}
-.stage svg {{ opacity: .62; transition: opacity .2s ease; }}
-.stage:hover {{ background: {CARD}; z-index: 3; }}
-.stage:hover svg {{ opacity: .88; }}
-.stage.on {{ background: {CARD}; z-index: 4;
-    box-shadow: inset 0 0 0 1.5px var(--cond), 0 14px 28px -18px rgba(11,31,39,.45); }}
-.stage.on svg {{ opacity: 1; }}
+/* Five tiles with an arrow gutter between each pair. The gutters are real
+   grid tracks rather than absolutely-positioned decoration, so the tiles stay
+   equal width and the arrows can never overlap a label. */
+.train {{ display:grid; align-items:stretch; margin:.2rem 0 0 0;
+    grid-template-columns: repeat(4, 1fr 30px) 1fr; }}
+.stage {{ text-decoration:none; display:flex; flex-direction:column; align-items:center;
+    padding:.85rem .5rem .7rem .5rem; border:1px solid {LINE}; border-radius:14px;
+    background:{CARD}; position:relative;
+    transition: transform .22s cubic-bezier(.2,.8,.3,1),
+                box-shadow .22s cubic-bezier(.2,.8,.3,1), border-color .2s ease; }}
+.stage svg {{ flex:none; }}
+.stage:hover {{ transform: translateY(-3px); border-color:#C4D8E0;
+    box-shadow: 0 16px 30px -22px rgba(11,31,39,.55); }}
+.stage.on {{ border-color: transparent;
+    box-shadow: inset 0 0 0 2px var(--cond), 0 16px 30px -20px rgba(11,31,39,.5); }}
+
+/* the arrow gutter: a hairline rail with a travelling dash, so the train
+   reads as a flow rather than five unrelated cards */
+.flow {{ display:flex; align-items:center; justify-content:center; }}
+.flow svg {{ overflow:visible; }}
+.flow .rail {{ stroke:{LINE}; stroke-width:2; }}
+.flow .run {{ stroke:{W_MID}; stroke-width:2; stroke-linecap:round;
+    stroke-dasharray:5 13; animation: drift 1.5s linear infinite; }}
+.flow .head {{ fill:{W_MID}; }}
+@keyframes drift {{ to {{ stroke-dashoffset:-18; }} }}
+@media (prefers-reduced-motion: reduce) {{
+    .flow .run {{ animation:none; stroke-dasharray:none; opacity:.55; }}
+}}
 
 /* Streamlit underlines and recolours markdown links; the stage tiles are
    navigation, not prose, so that styling is overridden outright. */
 .stage, .stage:link, .stage:visited, .stage:hover, .stage:active,
 .stage *, .train a, .train a * {{ text-decoration: none !important; }}
 .stage-name {{ text-align:center; font-size:.83rem; font-weight:600;
-    color:{INK} !important; margin-top:.1rem; letter-spacing:-.01em; }}
+    color:{INK} !important; margin-top:.45rem; letter-spacing:-.01em; }}
 .stage-si {{ text-align:center; font-size:.9rem; color:{INK_MUTED} !important;
-    margin-top:.2rem; font-family:'IBM Plex Mono',ui-monospace,monospace;
+    margin-top:.28rem; font-family:'IBM Plex Mono',ui-monospace,monospace;
     font-variant-numeric: tabular-nums; }}
 .stage-si b {{ color: var(--cond) !important; font-weight:600; }}
+.stage-ccpp {{ text-align:center; font-size:.72rem; margin-top:.12rem;
+    color:{INK_MUTED} !important; font-family:'IBM Plex Mono',ui-monospace,monospace;
+    font-variant-numeric: tabular-nums; }}
+
+/* Below the width where five tiles can hold a legible label, the train wraps
+   to a grid and the arrow gutters are dropped rather than squeezed. */
+@media (max-width: 1120px) {{
+    .train {{ grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:.5rem; }}
+    .flow {{ display:none; }}
+}}
 
 /* ---- hero reading ------------------------------------------------------ */
 /* The saturation index is the one number this whole application computes, so
    it gets the focal point rather than being the tail of a sentence. */
-.cond {{ display:grid; grid-template-columns: 168px 1fr; align-items:center;
+.cond {{ display:grid; grid-template-columns: 196px 1fr; align-items:center;
     gap:1.1rem; padding:.9rem 1.2rem; border:1px solid {LINE};
     border-radius:13px; background:{CARD}; margin:.1rem 0 1rem 0; }}
 .cond-k {{ font-size:.68rem; font-weight:600; letter-spacing:.09em; text-transform:uppercase;
@@ -168,38 +177,46 @@ h1.wm {{ font-size: 2.15rem; font-weight: 700; line-height: 1.16; letter-spacing
 .cond-v {{ font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:3.05rem;
     font-weight:600; line-height:1.02; letter-spacing:-.04em; color:var(--cond);
     font-variant-numeric: tabular-nums; }}
+/* SI names the direction, CCPP names the amount, so the two are read together
+   rather than on separate surfaces. Neither decides the verdict any more. */
+.cond-ccpp {{ font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:.8rem;
+    color:{INK_MID}; margin-top:.3rem; font-variant-numeric: tabular-nums; }}
+.cond-ccpp b {{ color:{INK}; font-weight:600; }}
+
+/* ---- drinking-water criteria ------------------------------------------- */
+/* The verdict is a summary of five separate tests, so the tests are shown.
+   A reader who is told the water is unfit should not have to guess which
+   criterion failed, or by how much. */
+.crit {{ display:flex; flex-wrap:wrap; gap:.36rem; margin-top:.6rem; }}
+.crit .c {{ display:inline-flex; align-items:baseline; gap:.34rem; font-size:.75rem;
+    padding:.2rem .52rem .24rem .52rem; border-radius:8px; border:1px solid; }}
+.crit .c i {{ font-style:normal; font-weight:600; }}
+.crit .c b {{ font-family:'IBM Plex Mono', ui-monospace, monospace; font-weight:600;
+    font-variant-numeric: tabular-nums; }}
+.crit .c s {{ text-decoration:none; opacity:.72; font-size:.68rem; }}
+.crit .ok   {{ background:#F1F9F4; border-color:#C9E6D3; color:#14532D; }}
+.crit .low  {{ background:#EDF7FB; border-color:#C2E2ED; color:#0D4C60; }}
+.crit .high {{ background:#FDF2ED; border-color:#F2D2C1; color:#7C2D12; }}
+.crit .na   {{ background:#F5F7F8; border-color:{LINE}; color:{INK_MUTED}; }}
 .cond-unit {{ font-size:1.28rem; font-weight:600; color:{INK}; letter-spacing:-.02em; }}
 .cond-txt {{ font-size:.97rem; color:{INK}; font-weight:600; margin-top:.12rem; }}
 .cond-sub {{ font-size:.86rem; color:{INK_MID}; font-weight:400; margin-top:.1rem;
     max-width: 46ch; }}
 
 /* ---- instrument readout ----------------------------------------------- */
-/* Fixed six-track module: 12 values fill exactly two flush rows, so the
+/* Fixed four-track module: 8 values fill exactly two flush rows, so the
    vertical rules line up and the card closes cleanly. */
-.readout {{ display:grid; grid-template-columns:repeat(6, 1fr);
+.readout {{ display:grid; grid-template-columns:repeat(4, 1fr);
     border:1px solid {LINE}; border-radius:13px; background:{CARD}; overflow:hidden;
     animation: rise .32s cubic-bezier(.2,.8,.3,1); }}
-@media (max-width: 1250px) {{ .readout {{ grid-template-columns:repeat(4, 1fr); }} }}
 @media (max-width: 820px)  {{ .readout {{ grid-template-columns:repeat(2, 1fr); }} }}
 @keyframes rise {{ from {{ opacity:0; transform:translateY(5px); }}
                    to {{ opacity:1; transform:none; }} }}
 .cell {{ padding:.62rem .8rem .66rem .8rem; border-right:1px solid {LINE};
     border-bottom:1px solid {LINE}; }}
 .cell.hl {{ background:#FBFDFE; }}
-
-/* unit-specific metrics: one row, so it never fights the grid module above */
-.extras {{ display:flex; flex-wrap:wrap; margin:.5rem 0 0 0; border:1px solid {LINE};
-    border-radius:13px; background:{CARD}; overflow:hidden; }}
-.extras .ex {{ flex:1 1 0; min-width:150px; padding:.55rem .85rem .6rem .85rem;
-    border-right:1px solid {LINE}; }}
-.extras .ex:last-child {{ border-right:none; }}
-.extras .k {{ font-size:.7rem; font-weight:600; letter-spacing:.03em; color:{INK_MUTED}; }}
-.extras .v {{ font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:1rem;
-    font-weight:600; color:{INK}; margin-top:.14rem; font-variant-numeric:tabular-nums; }}
-.extras .u {{ font-family:'IBM Plex Sans', sans-serif; font-size:.7rem; color:{INK_MUTED};
-    font-weight:500; margin-left:.2rem; }}
 /* Deliberately NOT uppercased: these labels carry element symbols and Greek
-   letters (Ca²⁺, Mg²⁺, pH, γ₂) that uppercasing would render incorrectly. */
+   letters (Ca²⁺, Mg²⁺, pH) that uppercasing would render incorrectly. */
 .cell .k {{ font-size:.735rem; letter-spacing:.028em; color:{INK_MUTED};
     font-weight:600; white-space:nowrap; }}
 .cell .v {{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:1.1rem;
@@ -215,11 +232,25 @@ hr {{ border-color:{LINE}; }}
 [data-testid="stPlotlyChart"] {{ border:1px solid {LINE}; border-radius:13px;
     background:{CARD}; overflow:hidden; }}
 .figmark {{ max-width: 300px; opacity:.66; margin:.2rem 0 .1rem 0; }}
-.ionrow {{ display:flex; align-items:center; gap:1.1rem; margin:.2rem 0 .8rem 0; }}
-.ionrow svg {{ flex:none; }}
-.ioncap {{ font-size:.86rem; color:{INK_MID}; line-height:1.55; max-width:66ch; }}
 .charttitle {{ font-size:.72rem; font-weight:600; letter-spacing:.085em; text-transform:uppercase;
     color:{INK_MUTED}; margin:.7rem 0 .35rem 0; }}
+
+/* ---- model assumptions ------------------------------------------------- */
+/* Rendered as a definition list rather than markdown bullets. Streamlit sets
+   `code` spans in a green monospace at a smaller size than their surrounding
+   text, which broke every constant onto its own visual register and wrapped
+   the exponents mid-value. Symbol and value are now two aligned columns, and
+   powers of ten are typeset as powers of ten. */
+.assump {{ display:grid; grid-template-columns:auto 1fr; gap:.32rem .7rem;
+    margin:.1rem 0 .2rem 0; }}
+.assump dt {{ font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:.78rem;
+    font-weight:600; color:{INK}; white-space:nowrap; }}
+.assump dd {{ margin:0; font-size:.78rem; color:{INK_MID}; line-height:1.45;
+    font-variant-numeric: tabular-nums; }}
+.assump dd .n {{ font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-weight:600; color:{INK}; }}
+.assump-note {{ font-size:.76rem; color:{INK_MUTED}; line-height:1.5;
+    margin:.7rem 0 0 0; padding-top:.6rem; border-top:1px solid {LINE}; }}
 </style>
 """,
     unsafe_allow_html=True,
@@ -251,8 +282,60 @@ KS_SCALE = 1.0e-8         # mol L-1 s-1 per unit positive SI
 U_EXPOSED, U_INSULATED = 8.0, 1.0     # W m-2 K-1
 PCO2_GAS_0 = 420e-6       # atm, initial headspace CO2 partial pressure
 
-STABLE_SI_TOL = 0.02
-STABLE_PH_MIN, STABLE_PH_MAX = 7.0, 8.5
+# Background salinity of the permeate, mg/L as NaCl. Fixed rather than exposed:
+# it sets the chloride level (sodium follows from electroneutrality) and feeds
+# the ionic-strength correction, but it is a property of the RO plant, not an
+# operating decision the person using this model gets to make.
+NACL_BACKGROUND = 60.0
+
+# ---- what counts as water fit to drink -------------------------------------
+# The condition of the water is judged on whether a person can drink it, not on
+# what it will do to the inside of the pipe. Those are different questions and
+# they do not have the same answer: water can be perfectly protective of a
+# cement lining and still be too soft, too flat and too low in calcium to be
+# supplied, which is exactly the failure mode of unremineralized desalinated
+# permeate.
+#
+# Each criterion below is a published drinking-water figure, not a modelling
+# choice. Bands are (minimum, maximum); None means that side is unbounded.
+#
+#   pH 7.0-8.5        WHO / US EPA secondary standard. Below 7 the water is
+#                     corrosive and flat-tasting, above 8.5 it turns soapy.
+#   Calcium >= 32     Israeli Ministry of Health minimum for desalinated
+#                     drinking water (equivalently 80 mg/L as CaCO3).
+#   Magnesium >= 10   WHO health-based recommendation. Desalinated permeate is
+#                     essentially magnesium-free, and it has to be put back.
+#   Alkalinity >= 80  Israeli MoH minimum. This is the buffering that stops the
+#                     pH of the delivered water from moving in the network.
+#   Hardness 60-180   WHO palatability classification: below 60 the water is
+#                     "soft" and tastes empty; 60-120 is moderately hard and
+#                     120-180 is hard, both perfectly drinkable; only above
+#                     180 does it start furring kettles and appliances.
+#
+#                     The maximum CANNOT be set at 120 even though that is the
+#                     more familiar number, because hardness is not independent
+#                     of the two criteria above it: TH = 2.497*Ca + 4.118*Mg,
+#                     so the calcium and magnesium minimums by themselves force
+#                     TH >= 2.497*32 + 4.118*10 = 121 mg/L. A 120 ceiling would
+#                     make the five criteria mutually unsatisfiable and no dose
+#                     set could ever pass them.
+#
+# The optimisation target for each criterion sits inside its band, and the
+# scale is the amount of that quantity that counts as one unit of "off". Total
+# hardness carries no target: it is a consequence of calcium and magnesium
+# rather than something dosed on its own, so it is constrained but not aimed at.
+DRINK_CRITERIA = [
+    # label,            reads,                    min,   max,   target, scale, unit,            dp
+    ("pH",              lambda s: s["pH"],        7.0,   8.5,   7.75,   0.75,  "",               2),
+    ("Calcium",         lambda s: s["Ca_mg"],     32.0,  None,  40.0,   8.0,   "mg/L",           1),
+    ("Magnesium",       lambda s: s["Mg_mg"],     10.0,  None,  14.0,   4.0,   "mg/L",           1),
+    ("Alkalinity",      lambda s: s["Alk_mg"],    80.0,  None,  100.0,  20.0,  "mg/L as CaCO₃",  1),
+    ("Total hardness",  lambda s: s["TH"],        60.0,  180.0, None,   40.0,  "mg/L as CaCO₃",  1),
+]
+
+# Still reported, because it is what the model computes about the pipe — but no
+# longer what decides the verdict.
+CCPP_MIN_MG, CCPP_MAX_MG = 3.0, 10.0      # mg/L as CaCO3
 
 DOSE_MAX = {"CaOH2": 200.0, "CO2": 200.0, "CaCO3": 300.0, "MgCl2": 200.0}
 CHEM_LABEL = {"CaOH2": "Ca(OH)₂", "CO2": "CO₂", "CaCO3": "CaCO₃", "MgCl2": "MgCl₂"}
@@ -483,6 +566,57 @@ def with_ccpp(s):
     return out
 
 
+def ccpp_mg(s):
+    """CCPP in mg/L as CaCO3 — the unit the drinking-water standard is written in."""
+    if s is None:
+        return float("nan")
+    v = s.get("CCPP")
+    if v is None or np.isnan(v):
+        return float("nan")
+    return v * MW["CaCO3"] * 1000.0
+
+
+def drink_report(s):
+    """Every drinking-water criterion, its value, and which way it fails.
+
+    Rows are (label, value, unit, dp, side); side is 'ok', 'low', 'high', 'na'.
+    """
+    rows = []
+    for label, read, lo, hi, _t, _sc, unit, dp in DRINK_CRITERIA:
+        v = read(s) if s is not None else float("nan")
+        if v is None or np.isnan(v):
+            side = "na"
+        elif lo is not None and v < lo:
+            side = "low"
+        elif hi is not None and v > hi:
+            side = "high"
+        else:
+            side = "ok"
+        rows.append((label, v, unit, dp, side))
+    return rows
+
+
+def classify(s):
+    """Is this water fit to supply — and if not, which way is it wrong?
+
+    'good'  every criterion met
+    'hard'  something is ABOVE its maximum: over-mineralized, hard, soapy
+    'soft'  otherwise something is BELOW its minimum: under-mineralized and
+            aggressive, which is the untreated-permeate failure
+
+    A water failing on both sides at once is reported as over-mineralized: that
+    is the fault you dose *down* to fix, and it is the one a consumer notices.
+    """
+    if s is None:
+        return None
+    sides = [r[4] for r in drink_report(s)]
+    if "na" in sides:
+        return None
+    if all(x == "ok" for x in sides):
+        return "good"
+    return "hard" if "high" in sides else "soft"
+
+
 # =============================================================================
 # 4. PROCESS UNITS
 # =============================================================================
@@ -691,13 +825,22 @@ def simulate(mode, pH0, alk0, CT0, Ca0, Mg0, nacl, T0, doses_t,
 
 def consumer_only(mode, pH0, alk0, CT0, Ca0, Mg0, nacl, T0, doses,
                   t_res, Vw, Vhs, Tres, vented, L, D, Q, Tenv, insulated, fast=True):
-    """Consumer state alone, at reduced resolution — for scans and optimisation."""
+    """Consumer state alone, at reduced resolution — for scans and optimisation.
+
+    The train runs without CCPP and it is solved once, on the consumer state
+    alone. CCPP is the quantity the target band is defined on, so a search that
+    skipped it would be optimising the wrong number — but the intermediate
+    stages are not being scored here, and solving it for them as well would
+    triple the cost of every evaluation for nothing.
+    """
     r = simulate(mode, pH0, alk0, CT0, Ca0, Mg0, nacl, T0,
                  (doses["CaOH2"], doses["CO2"], doses["CaCO3"], doses["MgCl2"]),
                  t_res, Vw, Vhs, Tres, vented, L, D, Q, Tenv, insulated,
                  res_steps=14 if fast else 60, nseg=10 if fast else 80,
                  ccpp=False, profile=False)
-    return None if r is None or r.get("problem") else r["pipe"]
+    if r is None or r.get("problem"):
+        return None
+    return with_ccpp(r["pipe"])
 
 
 # =============================================================================
@@ -710,51 +853,100 @@ class StablePointFound(Exception):
 
 
 def is_stable(s):
-    if s is None or np.isnan(s["SI"]) or np.isnan(s["pH"]):
+    """Every drinking-water criterion met."""
+    return classify(s) == "good"
+
+
+def is_comfortably_stable(s, margin=0.2):
+    """Met, and not sitting on a boundary.
+
+    The search stops the moment it finds acceptable water, which left it
+    returning points balanced on the edge of a band — hardness at 179.7 against
+    a ceiling of 180. Water like that is technically a pass and practically
+    useless, because the next nudge of any input tips it back out. The early
+    exit therefore asks for a margin of a fifth of each criterion's scale.
+    """
+    if s is None:
         return False
-    return abs(s["SI"]) <= STABLE_SI_TOL and STABLE_PH_MIN <= s["pH"] <= STABLE_PH_MAX
+    for _lbl, read, lo, hi, _t, scale, _u, _dp in DRINK_CRITERIA:
+        v = read(s)
+        if v is None or np.isnan(v):
+            return False
+        if lo is not None and v < lo + margin * scale:
+            return False
+        if hi is not None and v > hi - margin * scale:
+            return False
+    return True
 
 
 def quality(s):
-    """Lower is better: distance from SI = 0 plus a penalty outside the pH window."""
-    if s is None or np.isnan(s["SI"]) or np.isnan(s["pH"]):
+    """Lower is better: how far outside its band each criterion sits.
+
+    Distances are divided by that criterion's own scale so a pH unit and a
+    mg/L of calcium can be added together, and the sum is zero anywhere inside
+    every band — no point in the acceptable region is preferred to another.
+    """
+    if s is None:
         return np.inf
-    q = abs(s["SI"])
-    if s["pH"] < STABLE_PH_MIN:
-        q += 0.5 * (STABLE_PH_MIN - s["pH"])
-    elif s["pH"] > STABLE_PH_MAX:
-        q += 0.5 * (s["pH"] - STABLE_PH_MAX)
+    q = 0.0
+    for _lbl, read, lo, hi, _t, scale, _u, _dp in DRINK_CRITERIA:
+        v = read(s)
+        if v is None or np.isnan(v):
+            return np.inf
+        if lo is not None and v < lo:
+            q += (lo - v) / scale
+        elif hi is not None and v > hi:
+            q += (v - hi) / scale
     return float(q)
 
 
-def auto_stabilize(base, current, fast_first=True):
-    """Search Ca(OH)2 / CO2 / CaCO3 for SI = 0 at the consumer.
+DOSE_VARS = ("CaOH2", "CO2", "CaCO3", "MgCl2")
 
-    Powell with a hard evaluation cap, an early exit as soon as the target box
-    is reached, then a full-resolution validation of whatever it found.
+
+def auto_stabilize(base, current, fast_first=True):
+    """Search the four doses for water that meets every drinking criterion.
+
+    MgCl2 is searched alongside the other three because magnesium is one of the
+    criteria and nothing else in the train supplies it — desalinated permeate
+    carries essentially none, so holding MgCl2 fixed would leave the magnesium
+    minimum permanently unreachable.
+
+    Powell with a hard evaluation cap, an early exit as soon as every criterion
+    is met, then a full-resolution validation of whatever it found.
     """
     def evaluate(x, fast):
-        d = {"CaOH2": float(x[0]), "CO2": float(x[1]), "CaCO3": float(x[2]),
-             "MgCl2": current["MgCl2"]}
+        d = {k: float(v) for k, v in zip(DOSE_VARS, x)}
         return consumer_only(**base, doses=d, fast=fast), d
+
+    span = np.array([DOSE_MAX[k] for k in DOSE_VARS], dtype=float)
 
     def objective(x, fast):
         s, _ = evaluate(x, fast)
-        if s is None or np.isnan(s["SI"]) or np.isnan(s["pH"]):
+        if s is None or np.isnan(s["pH"]):
             return 1e6
-        if is_stable(s):
+        if is_comfortably_stable(s):
             raise StablePointFound(x, s)
-        score = (s["SI"] / 0.10) ** 2
-        if s["pH"] < STABLE_PH_MIN:
-            score += 12.0 * (STABLE_PH_MIN - s["pH"]) ** 2
-        elif s["pH"] > STABLE_PH_MAX:
-            score += 12.0 * (s["pH"] - STABLE_PH_MAX) ** 2
-        ref = np.array([current["CaOH2"], current["CO2"], current["CaCO3"]])
-        score += 0.015 * np.sum(((np.asarray(x) - ref) / np.array([200., 200., 300.])) ** 2)
+        # A purely one-sided penalty is flat everywhere inside the bands and
+        # gives Powell nothing to follow, so a weak pull toward the middle of
+        # each band rides on top of it. The hard term dominates whenever any
+        # criterion is actually violated.
+        score = 0.0
+        for _lbl, read, lo, hi, target, scale, _u, _dp in DRINK_CRITERIA:
+            v = read(s)
+            if v is None or np.isnan(v):
+                return 1e6
+            if lo is not None and v < lo:
+                score += 4.0 * ((lo - v) / scale) ** 2
+            elif hi is not None and v > hi:
+                score += 4.0 * ((v - hi) / scale) ** 2
+            if target is not None:
+                score += 0.05 * ((v - target) / scale) ** 2
+        ref = np.array([current[k] for k in DOSE_VARS], dtype=float)
+        score += 0.015 * np.sum(((np.asarray(x) - ref) / span) ** 2)
         return float(score)
 
-    bounds = [(0.0, DOSE_MAX["CaOH2"]), (0.0, DOSE_MAX["CO2"]), (0.0, DOSE_MAX["CaCO3"])]
-    x0 = np.array([current["CaOH2"], current["CO2"], current["CaCO3"]], dtype=float)
+    bounds = [(0.0, DOSE_MAX[k]) for k in DOSE_VARS]
+    x0 = np.array([current[k] for k in DOSE_VARS], dtype=float)
 
     now, _ = evaluate(x0, False)
     if is_stable(now):
@@ -771,32 +963,39 @@ def auto_stabilize(base, current, fast_first=True):
         except StablePointFound as hit:
             return hit.x
 
-    x_fast = powell(x0, fast_first, 120)
+    x_fast = powell(x0, fast_first, 160)
     cand = [(current, now)]
-    for x in (x_fast, powell(x_fast, False, 60)):
-        d = {"CaOH2": float(np.clip(x[0], 0, DOSE_MAX["CaOH2"])),
-             "CO2": float(np.clip(x[1], 0, DOSE_MAX["CO2"])),
-             "CaCO3": float(np.clip(x[2], 0, DOSE_MAX["CaCO3"])),
-             "MgCl2": current["MgCl2"]}
+    for x in (x_fast, powell(x_fast, False, 80)):
+        d = {k: float(np.clip(v, 0, DOSE_MAX[k])) for k, v in zip(DOSE_VARS, x)}
         cand.append((d, consumer_only(**base, doses=d, fast=False)))
 
     best_d, best_s = min(cand, key=lambda p: quality(p[1]))
     return {"doses": dict(best_d), "state": best_s, "stable": is_stable(best_s),
-            "message": ("A stable operating point was found." if is_stable(best_s)
-                        else "No point inside the target box was found within the "
-                             "evaluation limit; the closest one is shown.")}
+            "message": ("Every drinking-water criterion is met." if is_stable(best_s)
+                        else "No dose set meeting every criterion was found within "
+                             "the evaluation limit; the closest one is shown.")}
 
 
 # =============================================================================
 # 7. FIGURES
 # =============================================================================
-def si_color(si):
-    """Discrete state colour: aggressive / at equilibrium / scaling."""
-    if si is None or np.isnan(si):
-        return C_NEUTRAL
-    if abs(si) <= STABLE_SI_TOL:
-        return C_BALANCED
-    return C_SCALE if si > 0 else C_AGGR
+COND_COLOR = {"soft": C_AGGR, "good": C_BALANCED, "hard": C_SCALE}
+COND_TEXT = {
+    "soft": ("Not fit to drink — under-mineralized",
+             "Too soft and too lightly buffered to be supplied. Water like this "
+             "tastes empty and dissolves the cement lining it travels through."),
+    "good": ("Good for drinking",
+             "Meets every criterion for supplied drinking water: calcium, "
+             "magnesium, alkalinity, hardness and pH are all in range."),
+    "hard": ("Not fit to drink — over-mineralized",
+             "Carrying more mineral than drinking water should. Water like this "
+             "tastes soapy and furs kettles, pipes and appliances."),
+}
+
+
+def cond_color(s):
+    """Discrete state colour: under-mineralized / good / over-mineralized."""
+    return COND_COLOR.get(classify(s), C_NEUTRAL)
 
 
 MINUS = "\u2212"          # U+2212, not a hyphen: correct in numeric settings
@@ -814,6 +1013,24 @@ def fmt_signed(v, nd=2):
     if v is None or (isinstance(v, float) and np.isnan(v)):
         return "—"
     return f"{v:+.{nd}f}".replace("-", MINUS)
+
+
+SUP = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def sci(v, nd=1):
+    """A power of ten typeset as a power of ten, not as `1.0e-04`.
+
+    Python's e-notation is a serialisation format, not a way of setting a
+    number for someone to read: it pads the exponent, spells the multiplication
+    as a letter, and in a proportional face the mantissa and exponent end up on
+    two different visual registers.
+    """
+    if v is None or (isinstance(v, float) and np.isnan(v)):
+        return "—"
+    exp = int(math.floor(math.log10(abs(v)))) if v else 0
+    mant = v / (10 ** exp)
+    return f"{mant:.{nd}f} × 10{str(exp).translate(SUP)}"
 
 
 def style(fig, xtitle, ytitle, height=380, legend=False):
@@ -887,8 +1104,8 @@ def bjerrum_figure(T_C, I, pH_now, a_now):
     return style(fig, "pH", "Fraction of total inorganic carbon", 400, legend=True)
 
 
-def stage_figure(names, values, ytitle, si=False):
-    colors = [si_color(v) for v in values] if si else [SERIES[0]] * len(values)
+def stage_figure(names, values, ytitle, si=False, marker_colors=None):
+    colors = marker_colors or [SERIES[0]] * len(values)
     fig = go.Figure(go.Scatter(
         x=names, y=values, mode="lines+markers",
         line=dict(color=C_NEUTRAL, width=2),
@@ -902,185 +1119,228 @@ def stage_figure(names, values, ytitle, si=False):
 # =============================================================================
 # 8. PROCESS-UNIT ILLUSTRATIONS
 # =============================================================================
-def svg_calcite(size=54):
-    """The calcite cleavage rhombohedron — the mineral this whole app is about.
+def svg_logo(w=54):
+    """A calcite rhomb held inside a drop of water — the subject in one mark.
 
-    Drawn on the real crystallography, not a generic cube. Calcite is trigonal
-    R3̄c; its {101̄4} cleavage rhomb has face angles of 78°05′ / 101°55′ and
-    interfacial angles of 74°55′ / 105°05′. The vertex coordinates below are the
-    orthographic projection of that solid down a mirror-symmetric azimuth, so
-    the silhouette is a true calcite rhomb rather than a squashed hexagon.
+    Neither half works alone: a drop is any water utility, a crystal is any
+    mineralogy department. Together they are this specific problem, which is
+    putting the mineral back into water that had it stripped out.
 
-    (The common error is drawing the faces at 74°55′ — that is the dihedral
-    angle between two faces in three dimensions, not the angle you see.)
+    The rhomb is drawn on the real crystallography rather than as a generic
+    cube. Calcite is trigonal R3̄c; its {101̄4} cleavage rhomb has face angles
+    of 78°05′ / 101°55′. The vertices below are the orthographic projection of
+    that solid down a mirror-symmetric azimuth, so the silhouette is a true
+    calcite rhomb and not a squashed hexagon. (The common error is drawing the
+    faces at 74°55′ — that is the dihedral angle between two faces in three
+    dimensions, not the angle you see.)
     """
-    return f"""<svg width="{size}" height="{size * 100 / 135.08:.1f}"
-      viewBox="0 0 135.08 100" fill="none" preserveAspectRatio="xMidYMid meet">
-      <polygon points="67.54,100 135.08,86.16 135.08,13.84 67.54,0 0,13.84 0,86.16"
-               fill="#F0F7FA" stroke="{INK}" stroke-width="3.2" stroke-linejoin="round"/>
-      <polygon points="67.54,72.33 135.08,86.16 135.08,13.84 67.54,0"
-               fill="{C_AGGR_SOFT}" fill-opacity=".55"/>
-      <polygon points="67.54,72.33 67.54,0 0,13.84 0,86.16"
-               fill="{C_SCALE_SOFT}" fill-opacity=".45"/>
-      <path d="M67.54 72.33 L135.08 86.16 M67.54 72.33 L0 86.16 M67.54 72.33 L67.54 0"
-            stroke="{INK}" stroke-width="2.6" stroke-linecap="round"/>
-      <polygon points="67.54,100 135.08,86.16 67.54,72.33 0,86.16"
-               fill="{CARD}" fill-opacity=".35"/>
-    </svg>"""
-
-
-def svg_carbonate(size=46):
-    """The carbonate ion, CO₃²⁻: trigonal planar, D₃ₕ, three identical C–O bonds
-    at exactly 120°. Drawn as the delocalised hybrid (equal bonds plus an inner
-    arc) rather than one of the three resonance structures, because the real ion
-    has a bond order of 1⅓ on every bond and −⅔ charge on every oxygen."""
-    import math as _m
-    cx = cy = 50.0
-    r = 30.0
-    pts = [(cx + r * _m.cos(_m.radians(a)), cy + r * _m.sin(_m.radians(a)))
-           for a in (270, 30, 150)]                     # point-up, 120° apart
-    bonds = "".join(f'<line x1="{cx}" y1="{cy}" x2="{x:.2f}" y2="{y:.2f}" '
-                    f'stroke="{INK}" stroke-width="3"/>' for x, y in pts)
-    oxy = "".join(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="11" fill="{CARD}" '
-                  f'stroke="{INK}" stroke-width="3"/>' for x, y in pts)
-    return f"""<svg width="{size}" height="{size}" viewBox="0 0 100 100" fill="none">
-      {bonds}
-      <circle cx="{cx}" cy="{cy}" r="16.5" fill="none" stroke="{C_AGGR}"
-              stroke-width="2.4" stroke-dasharray="4 3.4"/>
-      {oxy}
+    return f"""<svg width="{w}" height="{w * 1.2:.0f}" viewBox="0 0 100 120" fill="none">
+      <defs>
+        <linearGradient id="lgDrop" x1="0" y1="0" x2=".35" y2="1">
+          <stop offset="0" stop-color="{W_LIGHT}"/>
+          <stop offset=".52" stop-color="{W_MID}"/>
+          <stop offset="1" stop-color="{W_DEEP}"/>
+        </linearGradient>
+      </defs>
+      <path d="M50 4 C62 26 92 52 92 74 A42 42 0 0 1 8 74 C8 52 38 26 50 4 Z"
+            fill="url(#lgDrop)"/>
+      <path d="M27 46 C21 57 19 65 19 72" stroke="#FFFFFF" stroke-opacity=".5"
+            stroke-width="4.4" stroke-linecap="round"/>
+      <polygon points="50,64.93 31,68.82 31,89.17 50,85.27" fill="#FBF0DA"/>
+      <polygon points="50,64.93 69,68.82 69,89.17 50,85.27" fill="#E2C48A"/>
+      <polygon points="50,93.06 69,89.17 50,85.27 31,89.17" fill="{MIN_EDGE}"/>
+      <path d="M50 85.27 L69 89.17 M50 85.27 L31 89.17 M50 85.27 L50 64.93"
+            stroke="#8A6428" stroke-width="1.5" stroke-opacity=".55"/>
+      <polygon points="50,93.06 69,89.17 69,68.82 50,64.93 31,68.82 31,89.17"
+               fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round"/>
     </svg>"""
 
 
 # ---------------------------------------------------------------------------
-# Process-unit symbols, drawn on ISO 10628-2 geometry rather than as free-hand
-# icons. The standard is built on a 2.5 mm module; here 1 ISO mm = 4 SVG units,
-# so the module is 10 units and every dimension lands on an integer.
+# Process-unit illustrations.
 #
-# Line-weight hierarchy is the standard's own 4:2:1 family (ISO 128-20):
-#     process piping 2.0  >  equipment outline 1.4  >  fittings/detail 1.0
-# Piping is deliberately HEAVIER than equipment: the pipe network is the
-# subject of a process drawing, vessels are context. Symbols are unfilled
-# line art - in the ISO sheets ~96% of elements carry fill:none, and solid
-# black is reserved for small marks that mean something (flow direction,
-# valve seats). Flow reads left to right; turns are 90 degrees only.
+# The earlier set was ISO 10628 line art: correct, but monochrome and almost
+# unreadable at tile size, where every unit resolved to the same grey outline.
+# These are drawn to be told apart at a glance instead, on one rule that keeps
+# them honest as a set:
+#
+#     WATER IS ONE BLUE EVERYWHERE. What changes from stage to stage is what is
+#     DISSOLVED IN IT, drawn as calcite grains in a limestone cream.
+#
+# So the train reads left to right as a story rather than five unrelated
+# pictures: the RO vessel splits salts out and hands on water with nothing in
+# it, the dosing station puts grains back, the reservoir holds them, the pipe
+# lays some down on its own wall, and a glass arrives carrying the rest. The
+# equipment stays flat line art in steel so the colour is never decoration —
+# it is always either water or mineral.
+#
+# The illustration palette is kept clear of the reserved blue/green/red, so a
+# picture can never be misread as a saturation reading.
 # ---------------------------------------------------------------------------
-W_PIPE, W_EQUIP, W_DETAIL = 2.0, 1.4, 1.0
-SVG_OPEN = ('<svg width="100%" height="88" viewBox="0 0 440 210" fill="none" '
-            'preserveAspectRatio="xMidYMid meet" '
-            'stroke-linecap="round" stroke-linejoin="round">')
+ICON = ('<svg width="118" height="82" viewBox="0 0 132 92" fill="none" '
+        'stroke-linecap="round" stroke-linejoin="round">')
+W_EQ, W_LN = 2.6, 2.2
 
 
-def _arrow(x, y, d=1):
-    """ISO flow arrow: a solid triangle at 2:1 length-to-base."""
-    L, B = 15.0, 7.5
-    return (f'<polygon points="{x:.0f},{y-B:.0f} {x + d*L:.0f},{y:.0f} '
-            f'{x:.0f},{y+B:.0f}" fill="{INK}"/>')
+def _grains(pts, r=2.7):
+    """Calcite in suspension."""
+    return "".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="{MIN_FILL}" '
+                   f'stroke="{MIN_EDGE}" stroke-width="1"/>' for x, y in pts)
+
+
+def _tri(x, y, d="r", fill=None, s=5.0):
+    """Flow arrowhead, 1.6:1 length to base."""
+    fill = fill or STEEL_DARK
+    p = (f"{x},{y-s} {x+s*1.6:.1f},{y} {x},{y+s}" if d == "r"
+         else f"{x-s},{y} {x},{y+s*1.6:.1f} {x+s},{y}")
+    return f'<polygon points="{p}" fill="{fill}"/>'
+
+
+def svg_flow():
+    """The connector between two stages: a rail with a dash travelling down it.
+
+    The train is a flow, so it is drawn as one. The dash is the only motion on
+    the page and it is switched off under prefers-reduced-motion.
+    """
+    return ('<svg width="30" height="22" viewBox="0 0 30 22" fill="none">'
+            '<path class="rail" d="M1 11 H21"/>'
+            '<path class="run" d="M1 11 H21"/>'
+            '<polygon class="head" points="19,5.5 29,11 19,16.5"/>'
+            '</svg>')
 
 
 def svg_desal():
-    """Reverse-osmosis pressure vessel.
+    """Reverse-osmosis vessel: salty feed in, salts rejected, bare water out.
 
-    ISO has no membrane symbol, so this follows water-industry practice built
-    from ISO primitives: a horizontal pressure vessel with 2:1 semi-elliptical
-    heads (rx = D/4 - the deeper dish is what reads as *pressure*-rated rather
-    than an atmospheric tank), and a dashed lengthwise barrier offset above the
-    centreline. Feed and concentrate connect on one side of that barrier, the
-    permeate leaves from the other - that relationship is what makes it an RO
-    vessel and not a filter.
+    The membrane is the dashed barrier down the middle, and the whole point of
+    the drawing is that grains appear on its left and never on its right. That
+    is what makes the water that leaves aggressive, and it is the reason every
+    other unit in this train exists.
     """
-    return f"""{SVG_OPEN}
-    <path d="M90 60 H350 M90 150 H350" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M90 150 A30 45 0 0 1 90 60" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M350 60 A30 45 0 0 1 350 150" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M90 95 H350" stroke="{INK}" stroke-width="{W_EQUIP}" stroke-dasharray="8 8"/>
-    <path d="M20 125 H60" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    {_arrow(58, 125)}
-    <path d="M380 125 H420" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    {_arrow(398, 125)}
-    <path d="M300 60 V22" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    <path d="M292 32 l8 -10 l8 10" stroke="{INK}" stroke-width="{W_DETAIL}"/>
+    return f"""{ICON}
+    <defs>
+      <linearGradient id="gDeF" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="{W_MID}"/><stop offset="1" stop-color="{W_DEEP}"/>
+      </linearGradient>
+      <linearGradient id="gDeP" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#E8F6FD"/><stop offset="1" stop-color="{W_LIGHT}"/>
+      </linearGradient>
+    </defs>
+    <path d="M2 46 H18" stroke="{STEEL_DARK}" stroke-width="{W_LN}"/>{_tri(12, 46)}
+    <path d="M66 26 H36 A20 20 0 0 0 36 66 H66 Z" fill="url(#gDeF)"/>
+    <path d="M66 26 H96 A20 20 0 0 1 96 66 H66 Z" fill="url(#gDeP)"/>
+    {_grains([(30, 38), (42, 55), (35, 47), (54, 36), (50, 58), (59, 47)])}
+    <path d="M66 24 V68" stroke="#FFFFFF" stroke-width="3.4" stroke-dasharray="5 4"/>
+    <path d="M36 26 H96 A20 20 0 0 1 96 66 H36 A20 20 0 0 1 36 26 Z"
+          stroke="{STEEL_DARK}" stroke-width="{W_EQ}"/>
+    <path d="M46 66 V78" stroke="{STEEL_DARK}" stroke-width="{W_LN}"/>{_tri(46, 76, "d")}
+    <path d="M116 46 H128" stroke="{STEEL_DARK}" stroke-width="{W_LN}"/>{_tri(122, 46)}
     </svg>"""
 
 
 def svg_remin():
-    """Chemical dosing station: day tank, metering pump, injection quill.
+    """Dosing station over the process line: mineral goes back into the water.
 
-    The pump is ISO X8095 - a circle with a discharge chevron and, on the left,
-    an outward-bulging arc of radius r*sqrt(2). That arc is the diaphragm, and
-    it is the only thing distinguishing a positive-displacement dosing pump
-    from a centrifugal one. Chemical additions enter a process line from above
-    by convention, so the station sits over the pipe and injects downward.
+    A day hopper of calcite and lime feeding an injection point, with grains
+    falling into the pipe and carried on downstream of it. The pipe is clear on
+    the left of the quill and carries mineral on the right — the addition is
+    the whole unit, so the drawing puts it on the centre line.
     """
-    return f"""{SVG_OPEN}
-    <path d="M150 14 H230 V96 H150 Z" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M150 34 H230" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M180 24 L190 34 L200 24" stroke="{INK}" stroke-width="{W_DETAIL}"/>
-    <path d="M190 96 V116" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    <circle cx="190" cy="140" r="24" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M190 116 L214 140 L190 164" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M166 140 H214" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M190 164 A34 34 0 0 1 190 116" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M214 140 H262 V178" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    <path d="M252 178 l10 10 l10 -10" stroke="{INK}" stroke-width="{W_DETAIL}"/>
-    <path d="M20 190 H420" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    {_arrow(360, 190)}
+    return f"""{ICON}
+    <defs>
+      <linearGradient id="gReH" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#FBF0DA"/><stop offset="1" stop-color="{MIN_FILL}"/>
+      </linearGradient>
+      <linearGradient id="gReW" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="{W_LIGHT}"/><stop offset="1" stop-color="{W_MID}"/>
+      </linearGradient>
+    </defs>
+    <polygon points="42,6 90,6 79,32 53,32" fill="url(#gReH)"
+             stroke="{STEEL_DARK}" stroke-width="{W_EQ}"/>
+    {_grains([(55, 15), (66, 12), (77, 16), (61, 24), (72, 25)], 2.5)}
+    <path d="M66 32 V44" stroke="{STEEL_DARK}" stroke-width="{W_EQ}"/>
+    {_grains([(66, 49), (63, 57), (69, 64)], 2.4)}
+    <rect x="2" y="55" width="128" height="22" fill="url(#gReW)"/>
+    <path d="M2 55 H130 M2 77 H130" stroke="{STEEL_DARK}" stroke-width="{W_EQ}"/>
+    {_grains([(80, 62), (93, 70), (105, 61), (116, 69)], 2.6)}
+    {_tri(26, 66, "r", "#FFFFFF", 5.4)}{_tri(46, 66, "r", "#FFFFFF", 5.4)}
     </svg>"""
 
 
 def svg_res():
-    """Storage tank with vapour headspace and vent.
+    """Storage tank: water under a gas headspace it exchanges CO₂ with.
 
-    ISO X2063 conical roof at a rise of D/8, and the single horizontal line at
-    20% depth that denotes the liquid surface - in P&ID the headspace is that
-    one line, never a shaded or gradient-filled region. The vent (ISO 2039) is
-    an OPEN chevron on a stem: an open chevron is the standard's vocabulary for
-    "to or from atmosphere", which is exactly what the vented mode models.
+    The headspace is drawn as a real volume rather than the single line a P&ID
+    would use, because in this model it is a volume — a finite one, whose pCO₂
+    moves as CO₂ leaves the water, which is what makes the transfer stop.
     """
-    return f"""{SVG_OPEN}
-    <path d="M140 46 L220 26 L300 46" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M140 46 V186 H300 V46" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M140 82 H300" stroke="{INK}" stroke-width="{W_EQUIP}"/>
-    <path d="M200 62 L220 82 L240 62 M240 62 H268" stroke="{INK}" stroke-width="{W_DETAIL}"/>
-    <path d="M200 26 L220 6 L240 26" stroke="{INK}" stroke-width="{W_DETAIL}"/>
-    <path d="M220 26 V6" stroke="{INK}" stroke-width="{W_DETAIL}"/>
-    <path d="M20 108 H140" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    {_arrow(104, 108)}
-    <path d="M300 160 H420" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    {_arrow(384, 160)}
+    return f"""{ICON}
+    <defs>
+      <linearGradient id="gRsW" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="{W_MID}"/><stop offset="1" stop-color="{W_DEEP}"/>
+      </linearGradient>
+    </defs>
+    <path d="M4 30 H24" stroke="{STEEL_DARK}" stroke-width="{W_LN}"/>{_tri(18, 30)}
+    <path d="M24 24 H108 V80 H24 Z" fill="{GAS_FILL}"/>
+    <path d="M24 46 Q45 39 66 46 T108 46 V80 H24 Z" fill="url(#gRsW)"/>
+    <circle cx="43" cy="35" r="3.4" fill="#FFFFFF" stroke="{STEEL}" stroke-width="1.2"/>
+    <circle cx="58" cy="31" r="2.4" fill="#FFFFFF" stroke="{STEEL}" stroke-width="1.2"/>
+    <circle cx="72" cy="36" r="2.9" fill="#FFFFFF" stroke="{STEEL}" stroke-width="1.2"/>
+    <circle cx="88" cy="31" r="2.1" fill="#FFFFFF" stroke="{STEEL}" stroke-width="1.2"/>
+    {_grains([(40, 60), (62, 68), (86, 57), (74, 73), (50, 72), (96, 69)])}
+    <polygon points="20,24 66,8 112,24" fill="{STEEL}" fill-opacity=".35"
+             stroke="{STEEL_DARK}" stroke-width="{W_EQ}"/>
+    <path d="M24 24 V80 H108 V24" stroke="{STEEL_DARK}" stroke-width="{W_EQ}"/>
+    <path d="M108 70 H128" stroke="{STEEL_DARK}" stroke-width="{W_LN}"/>{_tri(122, 70)}
     </svg>"""
 
 
 def svg_pipe():
-    """Insulated supply run, ISO X322.
+    """Supply run in longitudinal section, with scale growing along it.
 
-    The process line at full weight with two thin lines offset by D/8 either
-    side and 45-degree hatching spanning the gap - the standard's insulation
-    band. Flow arrows are placed at entry, midpoint and exit, as a real drawing
-    does, not once per line.
+    The cream layer thickens from left to right because that is what the model
+    computes: deposition is cumulative, so the far end of the run carries more
+    of it than the near end. The channel narrowing is the consequence a network
+    operator actually cares about.
     """
-    hatch = "".join(f'<path d="M{x} 130 l20 -20" stroke="{INK}" stroke-width="{W_DETAIL}"/>'
-                    for x in range(60, 380, 26))
-    return f"""{SVG_OPEN}
-    <path d="M20 120 H420" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    <path d="M50 100 H390 M50 130 H390" stroke="{INK}" stroke-width="{W_DETAIL}"/>
-    {hatch}
-    {_arrow(120, 120)}{_arrow(280, 120)}
+    return f"""{ICON}
+    <defs>
+      <linearGradient id="gPpW" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="{W_LIGHT}"/><stop offset=".5" stop-color="{W_MID}"/>
+        <stop offset="1" stop-color="{W_DEEP}"/>
+      </linearGradient>
+    </defs>
+    <rect x="2" y="28" width="128" height="36" fill="url(#gPpW)"/>
+    <polygon points="34,28 130,28 130,35.5 34,29" fill="{MIN_FILL}"/>
+    <polygon points="34,64 130,64 130,56.5 34,63" fill="{MIN_FILL}"/>
+    <path d="M34 29 L130 35.5 M34 63 L130 56.5" stroke="{MIN_EDGE}" stroke-width="1.3"/>
+    <path d="M2 28 H130 M2 64 H130" stroke="{STEEL_DARK}" stroke-width="3"/>
+    {_tri(24, 46, "r", "#FFFFFF", 5.4)}{_tri(54, 46, "r", "#FFFFFF", 5.4)}
+    {_tri(84, 46, "r", "#FFFFFF", 5.4)}
     </svg>"""
 
 
 def svg_consumer():
-    """Off-page connector - the standard way a P&ID hands a stream onward.
+    """The tap the whole train is aimed at.
 
-    A pennant: a square tail the pipe attaches to, stepping out and tapering to
-    a point in the flow direction. This is the most-used connector in real
-    drawings, and it is the correct symbol for "leaves this diagram and enters
-    the distribution network".
+    Water arrives carrying the mineral that was put back into it upstream. The
+    glass is the only unit in the train nobody operates, which is the point:
+    everything before it exists to make this one right.
     """
-    return f"""{SVG_OPEN}
-    <path d="M20 105 H190" stroke="{INK}" stroke-width="{W_PIPE}"/>
-    {_arrow(150, 105)}
-    <path d="M220 125 V85 H260 V65 L300 105 L260 145 V125 Z"
-          stroke="{INK}" stroke-width="{W_DETAIL}"/>
+    return f"""{ICON}
+    <defs>
+      <linearGradient id="gCnW" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="{W_LIGHT}"/><stop offset="1" stop-color="{W_MID}"/>
+      </linearGradient>
+    </defs>
+    <path d="M28 6 V22 H69 V31" stroke="{STEEL_DARK}" stroke-width="5"/>
+    <path d="M19 11 H37" stroke="{STEEL_DARK}" stroke-width="4"/>
+    <path d="M69 38 c3.4 4.4 5.4 6.8 5.4 8.8 a5.4 5.4 0 0 1 -10.8 0 c0 -2 2 -4.4 5.4 -8.8 z"
+          fill="{W_MID}"/>
+    <polygon points="49.5,63 88.5,63 85,86 53,86" fill="url(#gCnW)"/>
+    {_grains([(62, 72), (76, 79), (69, 68), (57, 81)], 2.5)}
+    <polygon points="46,54 92,54 86,88 52,88" stroke="{STEEL_DARK}" stroke-width="{W_EQ}"/>
+    <path d="M49.5 63 H88.5" stroke="#FFFFFF" stroke-width="2" stroke-opacity=".75"/>
     </svg>"""
 
 
@@ -1100,9 +1360,10 @@ if "pending_doses" in st.session_state:
     st.session_state["dose_lime"] = float(p["CaOH2"])
     st.session_state["dose_co2"] = float(p["CO2"])
     st.session_state["dose_calcite"] = float(p["CaCO3"])
+    st.session_state["dose_mgcl2"] = float(p["MgCl2"])
 
 with st.sidebar:
-    st.header("Feed water")
+    st.header("Desalinated water")
     spec_mode = st.selectbox(
         "Specified by", ["pH + alkalinity", "pH + Cₜ", "alkalinity + Cₜ"],
         help="pH, alkalinity and Cₜ are linked by the carbonate equilibrium, "
@@ -1119,10 +1380,6 @@ with st.sidebar:
 
     Ca0 = st.number_input("Ca²⁺ [mg/L]", 0.0, 500.0, 5.0, 1.0)
     Mg0 = st.number_input("Mg²⁺ [mg/L]", 0.0, 500.0, 1.0, 0.5)
-    nacl0 = st.number_input("Background salinity [mg/L as NaCl]", 0.0, 2000.0, 60.0, 5.0,
-                            help="Residual permeate salts. Sets the chloride level; "
-                                 "sodium follows from electroneutrality. Feeds the "
-                                 "ionic-strength correction.")
     T0 = st.number_input("Temperature [°C]", 1.0, 60.0, 25.0, 1.0)
 
     st.divider()
@@ -1136,16 +1393,10 @@ with st.sidebar:
     st.header("Closed reservoir")
     t_res = st.number_input("Residence time [h]", 0.0, 72.0, 2.0, 0.25)
     Vw = st.number_input("Water volume [m³]", 0.01, 1e7, 1000.0, 10.0)
-    vented = st.toggle(
-        "Vented to atmosphere", False,
-        help="Closed: a sealed headspace of the volume above. It equilibrates with "
-             "the water almost immediately, so residence time then stops mattering. "
-             "Vented: open to air at ambient pCO₂, an effectively infinite reservoir, "
-             "so CO₂ transfer continues for the whole residence time.")
     Vhs = st.number_input("Headspace volume [m³]", 0.01, 1e7, 100.0, 10.0,
-                          disabled=vented,
-                          help=("Not used when the reservoir is vented — the "
-                                "atmosphere is unbounded." if vented else None))
+                          help="The sealed gas volume above the water. CO₂ leaving "
+                               "the water raises its pCO₂, which is what brings the "
+                               "transfer to a stop.")
     Tres = st.number_input("Reservoir temperature [°C]", 1.0, 60.0, 25.0, 1.0)
 
     st.divider()
@@ -1158,17 +1409,38 @@ with st.sidebar:
 
     with st.expander("Model assumptions"):
         st.markdown(
-            f"""
-- kLa = `{KLA:.1e}` s⁻¹ · k_s = `{KS_SCALE:.1e}` mol L⁻¹s⁻¹ per unit SI
-- U = `{U_EXPOSED:.0f}` (exposed) / `{U_INSULATED:.0f}` (insulated) W m⁻²K⁻¹
-- Ambient / initial headspace pCO₂ = `{PCO2_GAS_0:.2e}` atm
-- Reservoir gas phase: **finite sealed headspace** (closed) or **unbounded
-  atmosphere at fixed pCO₂** (vented)
-- K₁, K₂, K_w, K_sp, K_H temperature-corrected with Van't Hoff
-- Activity coefficients from the **Davies equation**, applied as conditional
-  constants and iterated with the ionic strength
-- pH reported on the **activity scale**; SI built from **ion activities**
-"""
+            f'<dl class="assump">'
+            f'<dt>k<sub>L</sub>a</dt><dd><span class="n">{sci(KLA)}</span> s⁻¹ '
+            f'— gas-liquid transfer</dd>'
+            f'<dt>k<sub>s</sub></dt><dd><span class="n">{sci(KS_SCALE)}</span> '
+            f'mol L⁻¹ s⁻¹ per unit SI — deposition rate</dd>'
+            f'<dt>U</dt><dd><span class="n">{U_EXPOSED:.0f}</span> exposed / '
+            f'<span class="n">{U_INSULATED:.0f}</span> insulated W m⁻² K⁻¹</dd>'
+            f'<dt>pCO₂</dt><dd><span class="n">{sci(PCO2_GAS_0)}</span> atm '
+            f'— initial headspace</dd>'
+            f'<dt>Salinity</dt><dd>permeate background held at '
+            f'<span class="n">{NACL_BACKGROUND:.0f}</span> mg/L as NaCl</dd>'
+            f'</dl>'
+            f'<p class="assump-note"><b>Fit to drink</b> — every one of these '
+            f'must hold at the consumer:</p>'
+            f'<dl class="assump">'
+            + "".join(
+                f'<dt>{lbl}</dt><dd>'
+                + (f'<span class="n">{lo:g}</span>–<span class="n">{hi:g}</span>'
+                   if lo is not None and hi is not None else
+                   f'≥ <span class="n">{lo:g}</span>' if lo is not None else
+                   f'≤ <span class="n">{hi:g}</span>')
+                + (f' {unit}' if unit else '') + '</dd>'
+                for lbl, _r, lo, hi, _t, _sc, unit, _dp in DRINK_CRITERIA
+            ) +
+            f'</dl>'
+            f'<p class="assump-note">K₁, K₂, K<sub>w</sub>, K<sub>sp</sub> and '
+            f'K<sub>H</sub> are temperature-corrected with Van\'t Hoff. Activity '
+            f'coefficients come from the Davies equation, applied as conditional '
+            f'constants and iterated with the ionic strength; pH is reported on the '
+            f'activity scale and SI is built from ion activities. The reservoir gas '
+            f'phase is a finite sealed headspace.</p>',
+            unsafe_allow_html=True,
         )
 
 # =============================================================================
@@ -1176,50 +1448,33 @@ with st.sidebar:
 # =============================================================================
 doses = {"CaOH2": d_lime, "CO2": d_co2, "CaCO3": d_calc, "MgCl2": d_mg}
 base_inputs = dict(mode=spec_mode, pH0=pH0, alk0=alk0, CT0=CT0, Ca0=Ca0, Mg0=Mg0,
-                   nacl=nacl0, T0=T0, t_res=t_res, Vw=Vw, Vhs=Vhs, Tres=Tres,
-                   vented=vented, L=L, D=D, Q=Q, Tenv=Tenv, insulated=insulated)
+                   nacl=NACL_BACKGROUND, T0=T0, t_res=t_res, Vw=Vw, Vhs=Vhs, Tres=Tres,
+                   vented=False, L=L, D=D, Q=Q, Tenv=Tenv, insulated=insulated)
 
-sim = simulate(spec_mode, pH0, alk0, CT0, Ca0, Mg0, nacl0, T0,
+sim = simulate(spec_mode, pH0, alk0, CT0, Ca0, Mg0, NACL_BACKGROUND, T0,
                (d_lime, d_co2, d_calc, d_mg),
-               t_res, Vw, Vhs, Tres, vented, L, D, Q, Tenv, insulated)
+               t_res, Vw, Vhs, Tres, False, L, D, Q, Tenv, insulated)
 
 HEAD_LEDE = (
-    '<p class="lede">Desalinated permeate is aggressive: almost no calcium, almost no '
-    'buffering. This tool doses it back to stability and follows the calcium-carbonate '
-    'balance through storage and kilometres of pipe — where temperature, CO₂ exchange '
-    'and residence time keep moving it.</p>'
+    '<p class="lede">Enter the initial water quality and operating conditions in the '
+    'left sidebar, then adjust the remineralization doses, reservoir conditions and '
+    'pipe parameters. Click any process-unit icon to inspect the calculated water '
+    'quality at that stage, and use the analysis tabs below to explore how the '
+    'selected inputs affect the process outputs.</p>'
 )
-HEAD_BRAND = (f'<div class="brand">{svg_calcite(50)}'
+HEAD_BRAND = (f'<div class="brand">{svg_logo(46)}'
               f'<div><h1 class="wm">Remineralization<br>&amp; water transport</h1></div></div>')
 
 if sim is None or sim.get("problem"):
     st.markdown(HEAD_BRAND + HEAD_LEDE, unsafe_allow_html=True)
-    st.error(sim["problem"] if sim else "This feed water cannot be solved.")
+    st.error(sim["problem"] if sim else "This desalinated water cannot be solved.")
     st.stop()
 
 initial, remin, res, pipeout = sim["initial"], sim["remin"], sim["res"], sim["pipe"]
-profile, res_extra, pipe_extra = sim["profile"], sim["res_x"], sim["pipe_x"]
+profile = sim["profile"]
 d_name, d_unit, d_val = sim["derived"]
 
-# Title on the left; the three figures that summarise the whole run on the right,
-# so the first fold answers "what is coming out of the tap" before any scrolling.
-head_l, head_r = st.columns([1.55, 1])
-with head_l:
-    st.markdown(HEAD_BRAND + HEAD_LEDE, unsafe_allow_html=True)
-with head_r:
-    st.markdown(
-        f'<div class="plant">'
-        f'  <div class="fig"><div class="fk">delivered SI</div>'
-        f'       <div class="fv" style="color:{si_color(pipeout["SI"])}">'
-        f'{fmt_signed(pipeout["SI"])}</div></div>'
-        f'  <div class="fig"><div class="fk">delivered pH</div>'
-        f'       <div class="fv" style="color:{INK}">{fmt(pipeout["pH"])}</div></div>'
-        f'  <div class="fig"><div class="fk">CaCO₃ laid down</div>'
-        f'       <div class="fv" style="color:{INK}">{fmt(pipe_extra["precip"]*1000, 3)}'
-        f'<span style="font-size:.78rem;color:{INK_MUTED}"> mmol/L</span></div></div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
+st.markdown(HEAD_BRAND + HEAD_LEDE, unsafe_allow_html=True)
 
 # Four stages, because the model computes four distinct states. The supply pipe
 # is not a fifth state — it is the transport BETWEEN the reservoir and the tap,
@@ -1229,18 +1484,17 @@ with head_r:
 STAGES = [
     ("Desalinated water", svg_desal(), "Initial", "initial", initial),
     ("Remineralization", svg_remin(), "Remineralization", "remineralization", remin),
-    ("Vented reservoir" if vented else "Closed reservoir",
-     svg_res(), "Closed reservoir", "reservoir", res),
+    ("Closed reservoir", svg_res(), "Closed reservoir", "reservoir", res),
     ("Supply pipe", svg_pipe(), "Supply pipe", "pipe", pipeout),
     ("Consumer", svg_consumer(), "Consumer", "consumer", pipeout),
 ]
 KEY_TO_LABEL = {k: lbl for lbl, _, k, _, _ in STAGES}
 KEY_TO_LABEL["Supply pipe"] = "Consumer"          # legacy URL / session values
 
-# ---- derived feed-water quantity ------------------------------------------
+# ---- derived desalinated-water quantity ------------------------------------
 if not np.isnan(d_val):
     st.caption(
-        f"Feed water specified by **{spec_mode}** — calculated {d_name} = "
+        f"Desalinated water specified by **{spec_mode}** — calculated {d_name} = "
         f"**{d_val:.3f} {d_unit}**. All three stay consistent with each other."
     )
 
@@ -1252,46 +1506,54 @@ slug_to_key = {s[3]: s[2] for s in STAGES}
 if url_unit in slug_to_key:
     st.session_state.unit = slug_to_key[url_unit]
 
-train = ['<div class="train">']
-for label, svg, key, slug, state in STAGES:
-    si = state["SI"]
-    col = si_color(si)
+train = []
+for i, (label, svg, key, slug, state) in enumerate(STAGES):
+    if i:
+        train.append(f'<div class="flow">{svg_flow()}</div>')
+    col = cond_color(state)
+    met = sum(1 for r in drink_report(state) if r[4] == "ok")
     on = " on" if st.session_state.unit == key else ""
     train.append(
         f'<a class="stage{on}" href="?unit={slug}" target="_self" style="--cond:{col}">'
         f'{svg}<div class="stage-name">{label}</div>'
-        f'<div class="stage-si">SI <b>{fmt_signed(si)}</b></div></a>'
+        f'<div class="stage-si">SI <b>{fmt_signed(state["SI"])}</b></div>'
+        f'<div class="stage-ccpp">{met}/{len(DRINK_CRITERIA)} drinking criteria</div></a>'
     )
-train.append("</div>")
-st.markdown("".join(train), unsafe_allow_html=True)
+st.markdown(f'<div class="train">{"".join(train)}</div>', unsafe_allow_html=True)
 st.caption("Select a unit to inspect the water at that point in the train.")
 
 # ---- condition band + readout ---------------------------------------------
 s = dict(zip([x[2] for x in STAGES], [x[4] for x in STAGES]))[st.session_state.unit]
 
-if np.isnan(s["SI"]):
-    verdict, sub, dot = "Not available", "The carbonate system has no solution here.", C_NEUTRAL
-elif abs(s["SI"]) <= STABLE_SI_TOL:
-    verdict, sub, dot = ("At calcite equilibrium",
-                         "The water neither dissolves nor deposits CaCO₃.", C_BALANCED)
-elif s["SI"] > 0:
-    verdict, sub, dot = ("Oversaturated — scaling tendency",
-                         f"CaCO₃ tends to deposit. SI = {s['SI']:+.2f}.", C_SCALE)
+# The verdict is whether this water can be supplied, so it is read off the
+# drinking-water criteria. SI and CCPP stay as the headline figures — they are
+# what the model computes — but neither of them decides the answer.
+state_key = classify(s)
+ccpp_now = ccpp_mg(s)
+if state_key is None:
+    verdict, sub, dot = ("Not available",
+                         "The carbonate system has no solution here.", C_NEUTRAL)
 else:
-    verdict, sub, dot = ("Undersaturated — aggressive",
-                         f"The water dissolves CaCO₃ and attacks cement lining. "
-                         f"SI = {s['SI']:+.2f}.", C_AGGR)
+    verdict, sub = COND_TEXT[state_key]
+    dot = COND_COLOR[state_key]
 
 unit_label = KEY_TO_LABEL.get(st.session_state.unit, st.session_state.unit)
-si_txt = fmt_signed(s["SI"])
+rows = drink_report(s)
+chips = "".join(
+    f'<span class="c {side}"><i>{label}</i><b>{fmt(v, dp)}</b><s>{unit}</s></span>'
+    for label, v, unit, dp, side in rows
+)
 
 st.markdown(
     f'<div class="cond" style="--cond:{dot}">'
     f'  <div><div class="cond-k">saturation index</div>'
-    f'       <div class="cond-v">{si_txt}</div></div>'
+    f'       <div class="cond-v">{fmt_signed(s["SI"])}</div>'
+    f'       <div class="cond-ccpp">CCPP <b>{fmt_signed(ccpp_now, 1)}</b> '
+    f'mg/L as CaCO₃</div></div>'
     f'  <div><div class="cond-unit">{unit_label}</div>'
     f'       <div class="cond-txt">{verdict}</div>'
-    f'       <div class="cond-sub">{sub}</div></div>'
+    f'       <div class="cond-sub">{sub}</div>'
+    f'       <div class="crit">{chips}</div></div>'
     f'</div>',
     unsafe_allow_html=True,
 )
@@ -1306,7 +1568,7 @@ def cells(items):
     return "".join(html)
 
 
-# exactly twelve values -> two flush rows of six, so the column rules align
+# exactly eight values -> two flush rows of four, so the column rules align
 readout = [
     ("pH", fmt(s["pH"]), ""),
     ("Alkalinity", fmt(s["Alk_mg"], 1), "mg/L as CaCO₃"),
@@ -1314,35 +1576,10 @@ readout = [
     ("Mg²⁺", fmt(s["Mg_mg"], 1), "mg/L"),
     ("Total hardness", fmt(s["TH"], 1), "mg/L as CaCO₃"),
     ("Cₜ", fmt(s["CT"] * 1000, 3), "mmol/L"),
-    ("CCPP", fmt(s.get("CCPP", np.nan) * 1000 if s.get("CCPP") is not None else np.nan, 3),
-     "mmol/L"),
+    ("CCPP", fmt_signed(ccpp_now, 1), "mg/L as CaCO₃"),
     ("Dissolved CO₂*", fmt(s["CO2"] * 1000, 3), "mmol/L"),
-    ("Ionic strength", fmt(s["I"] * 1000, 2), "mmol/L"),
-    ("γ₂ activity coeff.", fmt(s["g2"], 3), ""),
-    ("Chloride", fmt(s["Cl"] * MW["Cl"] * 1000, 1), "mg/L"),
-    ("Temperature", fmt(s["T"], 1), "°C"),
 ]
 st.markdown(cells(readout), unsafe_allow_html=True)
-
-# unit-specific metrics live in their own strip rather than a second grid whose
-# column module would not line up with the one above it
-extra = []
-if st.session_state.unit == "Closed reservoir":
-    extra = [("Headspace pCO₂", f'{res_extra["pCO2"]:.2e}', "atm"),
-             ("Residence time", fmt(t_res, 2), "h"),
-             ("Gas phase", "vented" if vented else "sealed", "")]
-elif st.session_state.unit in ("Supply pipe", "Consumer"):
-    extra = [("Velocity", fmt(pipe_extra["v"]), "m/s"),
-             ("Travel time", fmt(pipe_extra["t_s"] / 60), "min"),
-             ("Heat transfer U", fmt(pipe_extra["U"]), "W/m²K"),
-             ("CaCO₃ deposited in pipe", fmt(pipe_extra["precip"] * 1000, 4), "mmol/L")]
-if extra:
-    strip = ['<div class="extras">']
-    for k, v, u in extra:
-        strip.append(f'<div class="ex"><div class="k">{k}</div>'
-                     f'<div class="v">{v}<span class="u">{u}</span></div></div>')
-    strip.append("</div>")
-    st.markdown("".join(strip), unsafe_allow_html=True)
 
 # =============================================================================
 # 11. AUTOMATIC STABILISATION
@@ -1350,18 +1587,19 @@ if extra:
 st.markdown("### Automatic stabilisation")
 a1, a2 = st.columns([1, 2.4])
 with a1:
-    go_auto = st.button("Stabilise the delivered water", type="primary",
+    go_auto = st.button("Make the delivered water drinkable", type="primary",
                         width="stretch")
 with a2:
     st.markdown(
-        f'<p class="note">Adjusts Ca(OH)₂, CO₂ and CaCO₃ only, targeting '
-        f'|SI| ≤ {STABLE_SI_TOL:.2f} and pH {STABLE_PH_MIN:.1f}–{STABLE_PH_MAX:.1f} '
-        f'<b>at the consumer</b> — the end of the pipe, not the plant outlet.</p>',
+        '<p class="note">Adjusts all four doses to bring every drinking-water '
+        'criterion into range <b>at the consumer</b> — the end of the pipe, not '
+        'the plant outlet. MgCl₂ moves too, because nothing else in the train '
+        'supplies magnesium.</p>',
         unsafe_allow_html=True,
     )
 
 if go_auto:
-    with st.spinner("Searching for a stable operating point…"):
+    with st.spinner("Searching for a drinkable operating point…"):
         result = auto_stabilize(base_inputs, {
             "CaOH2": float(st.session_state["dose_lime"]),
             "CO2": float(st.session_state["dose_co2"]),
@@ -1369,10 +1607,15 @@ if go_auto:
             "MgCl2": float(st.session_state["dose_mgcl2"]),
         })
     o, fs = result["doses"], result["state"]
-    st.session_state["pending_doses"] = {k: round(o[k], 1) for k in ("CaOH2", "CO2", "CaCO3")}
+    st.session_state["pending_doses"] = {k: round(o[k], 1) for k in DOSE_VARS}
+    misses = [r[0] for r in drink_report(fs) if r[4] != "ok"]
     st.session_state["auto_msg"] = (
-        f'Ca(OH)₂ **{o["CaOH2"]:.1f}**, CO₂ **{o["CO2"]:.1f}**, CaCO₃ **{o["CaCO3"]:.1f}** mg/L '
-        f'→ consumer SI **{fs["SI"]:+.2f}**, pH **{fs["pH"]:.2f}**. {result["message"]}'
+        f'Ca(OH)₂ **{o["CaOH2"]:.1f}**, CO₂ **{o["CO2"]:.1f}**, CaCO₃ '
+        f'**{o["CaCO3"]:.1f}**, MgCl₂ **{o["MgCl2"]:.1f}** mg/L → consumer pH '
+        f'**{fs["pH"]:.2f}**, Ca **{fs["Ca_mg"]:.1f}**, Mg **{fs["Mg_mg"]:.1f}**, '
+        f'alkalinity **{fs["Alk_mg"]:.0f}**, hardness **{fs["TH"]:.0f}** mg/L. '
+        + result["message"]
+        + (f' Still outside range: {", ".join(misses)}.' if misses else "")
     )
     st.session_state["auto_ok"] = bool(result["stable"])
     st.session_state["unit"] = "Consumer"
@@ -1387,23 +1630,25 @@ with st.expander(f"Suggest a single-dose adjustment for {st.session_state.unit}"
     st.markdown(
         '<p class="note">Scans one chemical at a time across its full range, holding '
         'everything else at the current settings, and reports the setting that brings '
-        'the selected unit closest to equilibrium.</p>', unsafe_allow_html=True)
+        'the selected unit closest to meeting every drinking-water criterion.</p>',
+        unsafe_allow_html=True)
     if st.button("Run scan", key="scan_btn"):
         target = st.session_state.unit
         with st.spinner("Scanning…"):
             def state_for(td):
-                r = simulate(spec_mode, pH0, alk0, CT0, Ca0, Mg0, nacl0, T0,
+                r = simulate(spec_mode, pH0, alk0, CT0, Ca0, Mg0, NACL_BACKGROUND, T0,
                              (td["CaOH2"], td["CO2"], td["CaCO3"], td["MgCl2"]),
-                             t_res, Vw, Vhs, Tres, vented, L, D, Q, Tenv, insulated,
+                             t_res, Vw, Vhs, Tres, False, L, D, Q, Tenv, insulated,
                              res_steps=14, nseg=10, ccpp=False, profile=False)
-                if r is None:
+                if r is None or r.get("problem"):
                     return None
-                return {"Initial": r["initial"], "Remineralization": r["remin"],
+                return {"Initial": r["initial"],
+                        "Remineralization": r["remin"],
                         "Closed reservoir": r["res"]}.get(target, r["pipe"])
 
             base_q = quality(s)
             recs = []
-            for chem in ("CaOH2", "CO2", "CaCO3"):
+            for chem in DOSE_VARS:
                 best_v, best_q = doses[chem], base_q
                 best_s = s
                 for v in np.linspace(0, DOSE_MAX[chem], 25):
@@ -1418,12 +1663,16 @@ with st.expander(f"Suggest a single-dose adjustment for {st.session_state.unit}"
             recs.sort(reverse=True, key=lambda r: r[0])
 
         if is_stable(s):
-            st.success(f"No adjustment needed — **{target}** already meets the target.")
+            st.success(f"No adjustment needed — **{target}** already meets every "
+                       f"drinking-water criterion.")
         elif recs:
             for _, chem, v, cs in recs[:3]:
+                left = [r[0] for r in drink_report(cs) if r[4] != "ok"]
                 st.markdown(
-                    f"- **{CHEM_LABEL[chem]} → {v:.0f} mg/L** gives SI **{cs['SI']:+.2f}**, "
-                    f"pH **{cs['pH']:.2f}** at {target}.")
+                    f"- **{CHEM_LABEL[chem]} → {v:.0f} mg/L** leaves "
+                    + (f"{', '.join(left)} still out of range" if left
+                       else "every criterion met")
+                    + f" at {target}.")
         else:
             st.info("No single-dose change improves this unit. Try automatic stabilisation, "
                     "which moves all three together.")
@@ -1434,16 +1683,15 @@ with st.expander(f"Suggest a single-dose adjustment for {st.session_state.unit}"
 st.divider()
 st.markdown("### Analysis")
 
-t1, t2, t3, t4, t5, t6 = st.tabs([
-    "Dose response", "Reservoir", "Along the pipe", "Across the train",
-    "Carbonate system", "Operating map",
+t1, t2, t3, t4, t5 = st.tabs([
+    "Remineralization", "Reservoir", "Along the pipe", "Complete system",
+    "Carbonate system",
 ])
 
 with t1:
     c1, c2 = st.columns(2)
     chem = LABEL_CHEM[c1.selectbox("Chemical", list(CHEM_LABEL.values()))]
-    out = c2.selectbox("Response", ["SI", "pH", "Alkalinity", "Total hardness",
-                                    "CCPP", "Ionic strength"])
+    out = c2.selectbox("Response", ["SI", "pH", "Alkalinity", "Total hardness", "CCPP"])
     xs = np.linspace(0, DOSE_MAX[chem], 40)
     need_ccpp = out == "CCPP"
     ys = []
@@ -1453,11 +1701,10 @@ with t1:
         rr = remineralize(initial, d, need_ccpp)
         ys.append({"SI": rr["SI"], "pH": rr["pH"], "Alkalinity": rr["Alk_mg"],
                    "Total hardness": rr["TH"],
-                   "CCPP": rr.get("CCPP", np.nan) * 1000 if need_ccpp else np.nan,
-                   "Ionic strength": rr["I"] * 1000}[out])
+                   "CCPP": ccpp_mg(rr) if need_ccpp else np.nan}[out])
     ylab = {"SI": "SI", "pH": "pH", "Alkalinity": "Alkalinity [mg/L as CaCO₃]",
             "Total hardness": "Total hardness [mg/L as CaCO₃]",
-            "CCPP": "CCPP [mmol/L]", "Ionic strength": "Ionic strength [mmol/L]"}[out]
+            "CCPP": "CCPP [mg/L as CaCO₃]"}[out]
     fig = line_fig(xs, ys, f"{CHEM_LABEL[chem]} dose [mg/L]", ylab, si=(out == "SI"))
     fig.add_vline(x=doses[chem], line=dict(color=INK_MUTED, width=1.5, dash="dot"),
                   annotation_text="current", annotation_position="top",
@@ -1473,29 +1720,22 @@ with t2:
     need_ccpp = out2 == "CCPP"
     ys = []
     for tt in ts:
-        rr, _ = reservoir(remin, float(tt), Vw, Vhs, Tres, need_ccpp, 60, vented)
+        rr, _ = reservoir(remin, float(tt), Vw, Vhs, Tres, need_ccpp, 60, False)
         ys.append({"SI": rr["SI"], "pH": rr["pH"], "Cₜ": rr["CT"] * 1000,
                    "Dissolved CO₂": rr["CO2"] * 1000,
-                   "CCPP": rr.get("CCPP", np.nan) * 1000 if need_ccpp else np.nan}[out2])
+                   "CCPP": ccpp_mg(rr) if need_ccpp else np.nan}[out2])
     ylab2 = {"SI": "SI", "pH": "pH", "Cₜ": "Cₜ [mmol/L]",
-             "Dissolved CO₂": "CO₂* [mmol/L]", "CCPP": "CCPP [mmol/L]"}[out2]
+             "Dissolved CO₂": "CO₂* [mmol/L]", "CCPP": "CCPP [mg/L as CaCO₃]"}[out2]
     fig = line_fig(ts, ys, "Residence time [h]", ylab2, si=(out2 == "SI"))
     fig.add_vline(x=t_res, line=dict(color=INK_MUTED, width=1.5, dash="dot"),
                   annotation_text="selected", annotation_position="top",
                   annotation_font=dict(size=11, color=INK_MUTED))
     st.plotly_chart(fig, key="t2")
-    if vented:
-        st.caption(
-            "Open to atmosphere: the air is an unbounded reservoir at ambient pCO₂, so "
-            "exchange continues for the whole residence time. Storage alone can do much "
-            "of the stabilisation work here.")
-    else:
-        st.caption(
-            "Sealed headspace: every mole crossing the interface changes pCO₂ in the gas, "
-            f"so the two phases equilibrate and transfer stops. With {Vw:,.0f} m³ of water "
-            f"over {Vhs:,.0f} m³ of headspace the gas is exhausted quickly, which is why "
-            "the curve flattens and residence time then stops mattering. Switch on "
-            "**Vented to atmosphere** in the sidebar to see the unbounded case.")
+    st.caption(
+        "Sealed headspace: every mole crossing the interface changes pCO₂ in the gas, "
+        f"so the two phases equilibrate and transfer stops. With {Vw:,.0f} m³ of water "
+        f"over {Vhs:,.0f} m³ of headspace the gas is exhausted quickly, which is why "
+        "the curve flattens and residence time then stops mattering.")
 
 with t3:
     out3 = st.selectbox("Response", ["SI", "Cumulative CaCO₃ deposited",
@@ -1516,40 +1756,36 @@ with t3:
                 fillcolor="rgba(194,65,12,.13)", hoverinfo="skip",
                 showlegend=False))
     st.plotly_chart(fig, key="t3")
-    st.caption(f"Water travels {L:,.0f} m in {pipe_extra['t_s']/60:.1f} min at "
-               f"{pipe_extra['v']:.2f} m/s. Shaded = oversaturated, where CaCO₃ deposits.")
+    st.caption(f"Water travels the {L:,.0f} m of the run from left to right. "
+               "Shaded = oversaturated, where CaCO₃ deposits.")
 
 with t4:
-    out4 = st.selectbox("Parameter", ["SI", "pH", "Alkalinity", "Ca", "Total hardness",
-                                      "Cₜ", "CCPP", "Ionic strength", "Temperature"],
-                        key="sys_out")
+    out4 = st.selectbox("Parameter", ["SI", "CCPP", "pH", "Alkalinity", "Ca", "Mg",
+                                      "Total hardness", "Cₜ"], key="sys_out")
     seq = [initial, remin, res, pipeout]
     names = ["Desalinated", "Remineralized", "Reservoir", "Consumer"]
     getter = {
         "SI": lambda z: z["SI"], "pH": lambda z: z["pH"],
         "Alkalinity": lambda z: z["Alk_mg"], "Ca": lambda z: z["Ca_mg"],
+        "Mg": lambda z: z["Mg_mg"],
         "Total hardness": lambda z: z["TH"], "Cₜ": lambda z: z["CT"] * 1000,
-        "CCPP": lambda z: z.get("CCPP", np.nan) * 1000,
-        "Ionic strength": lambda z: z["I"] * 1000, "Temperature": lambda z: z["T"],
+        "CCPP": ccpp_mg,
     }[out4]
     ylab4 = {"SI": "SI", "pH": "pH", "Alkalinity": "Alkalinity [mg/L as CaCO₃]",
-             "Ca": "Ca [mg/L]", "Total hardness": "Total hardness [mg/L as CaCO₃]",
-             "Cₜ": "Cₜ [mmol/L]", "CCPP": "CCPP [mmol/L]",
-             "Ionic strength": "Ionic strength [mmol/L]",
-             "Temperature": "Temperature [°C]"}[out4]
-    st.plotly_chart(stage_figure(names, [getter(z) for z in seq], ylab4,
-                                 si=(out4 == "SI")), key="t4")
-    if out4 == "SI":
-        st.caption("Marker colour shows the condition at each stage: teal = aggressive, "
-                   "green = at equilibrium, orange = scaling.")
+             "Ca": "Ca [mg/L]", "Mg": "Mg [mg/L]",
+             "Total hardness": "Total hardness [mg/L as CaCO₃]",
+             "Cₜ": "Cₜ [mmol/L]", "CCPP": "CCPP [mg/L as CaCO₃]"}[out4]
+    # Marker colour describes the WATER at each stage, not the quantity plotted,
+    # so it is shown whichever parameter is on the axis.
+    st.plotly_chart(
+        stage_figure(names, [getter(z) for z in seq], ylab4, si=(out4 == "SI"),
+                     marker_colors=[cond_color(z) for z in seq]),
+        key="t4")
+    st.caption("Marker colour shows whether the water is fit to drink at each "
+               "stage: blue = under-mineralized, green = meets every criterion, "
+               "red = over-mineralized.")
 
 with t5:
-    st.markdown(
-        f'<div class="ionrow">{svg_carbonate(52)}'
-        f'<div class="ioncap"><b>CO₃²⁻ — trigonal planar, D₃ₕ.</b> Three identical C–O bonds '
-        f'of 1.28 Å at exactly 120°, drawn as the delocalised hybrid: bond order 1⅓ on every '
-        f'bond and −⅔ charge on every oxygen, not one double bond and two singles.</div></div>',
-        unsafe_allow_html=True)
     st.plotly_chart(
         bjerrum_figure(s["T"], s["I"], s["pH"], [s["a0"], s["a1"], s["a2"]]),
         key="t5")
@@ -1560,64 +1796,10 @@ with t5:
         "that shift is exactly what the activity correction accounts for."
     )
 
-with t6:
-    st.markdown(
-        '<p class="note">Consumer SI across the two dominant dose axes, with the '
-        'equilibrium contour drawn. Everything else stays at the current settings.</p>',
-        unsafe_allow_html=True)
-    _mapped = st.session_state.get("map_on")
-    if st.button("Recompute map" if _mapped else "Compute operating map",
-                 key="map_btn", type="primary"):
-        st.session_state["map_on"] = True
-    if st.session_state.get("map_on"):
-        n = 17
-        lime_ax = np.linspace(0, DOSE_MAX["CaOH2"], n)
-        co2_ax = np.linspace(0, DOSE_MAX["CO2"], n)
-        with st.spinner("Mapping the operating plane…"):
-            Z = np.empty((n, n))
-            for i, c in enumerate(co2_ax):
-                for j, l in enumerate(lime_ax):
-                    st_ = consumer_only(**base_inputs,
-                                        doses={"CaOH2": float(l), "CO2": float(c),
-                                               "CaCO3": d_calc, "MgCl2": d_mg},
-                                        fast=True)
-                    Z[i, j] = np.nan if st_ is None else st_["SI"]
-        lim = float(np.nanmax(np.abs(Z))) or 1.0
-        fig = go.Figure(go.Heatmap(
-            x=lime_ax, y=co2_ax, z=Z, colorscale=SI_COLORSCALE,
-            zmid=0, zmin=-lim, zmax=lim, zsmooth="best",
-            colorbar=dict(title=dict(text="SI", font=dict(size=11, color=INK_MUTED)),
-                          tickfont=dict(size=10, color=INK_MUTED), outlinewidth=0,
-                          orientation="h", y=1.045, x=0, len=0.36, thickness=10,
-                          xanchor="left", yanchor="bottom"),
-            hovertemplate="Ca(OH)₂ %{x:.0f} · CO₂ %{y:.0f} mg/L<br>SI %{z:+.2f}<extra></extra>"))
-        fig.add_trace(go.Contour(
-            x=lime_ax, y=co2_ax, z=Z, showscale=False, contours=dict(
-                start=0, end=0, size=1, coloring="none",
-                showlabels=True, labelfont=dict(size=11, color=INK)),
-            line=dict(color=INK, width=2), hoverinfo="skip", name="SI = 0"))
-        fig.add_trace(go.Scatter(
-            x=[d_lime], y=[d_co2], mode="markers", showlegend=False,
-            marker=dict(size=14, color="white", line=dict(color=INK, width=2.5),
-                        symbol="circle"),
-            hovertemplate="current setting<extra></extra>"))
-        style(fig, "Ca(OH)₂ dose [mg/L]", "CO₂ dose [mg/L]", 560)
-        # both axes carry the same unit over the same range, so they must be
-        # scaled equally or the SI = 0 contour misstates the dose trade-off
-        fig.update_yaxes(scaleanchor="x", scaleratio=1)
-        fig.add_annotation(x=d_lime, y=d_co2, text="current doses", ax=48, ay=-38,
-                           showarrow=True, arrowwidth=1.4, arrowhead=0,
-                           arrowcolor=INK, font=dict(size=11, color=INK))
-        fig.update_layout(hovermode="closest")
-        st.plotly_chart(fig, key="t6")
-        st.caption("The dark contour is calcite equilibrium at the consumer — every "
-                   "point on it delivers stable water. The ring marks the current doses.")
-
 with st.expander("Full calculated state"):
     st.dataframe(pd.DataFrame([{
         "Stage": z["name"], "pH": z["pH"],
         "Alk [mg/L CaCO₃]": z["Alk_mg"], "Ca [mg/L]": z["Ca_mg"],
         "Mg [mg/L]": z["Mg_mg"], "TH [mg/L CaCO₃]": z["TH"],
-        "Cₜ [mol/L]": z["CT"], "SI": z["SI"], "CCPP [mol/L]": z.get("CCPP", np.nan),
-        "I [mol/L]": z["I"], "γ₂": z["g2"], "T [°C]": z["T"],
+        "Cₜ [mol/L]": z["CT"], "SI": z["SI"], "CCPP [mg/L CaCO₃]": ccpp_mg(z),
     } for z in (initial, remin, res, pipeout)]), hide_index=True)

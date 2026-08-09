@@ -8,3 +8,7 @@ fingerprint.json
 
 # the assignment brief is the instructor's document, not ours to republish
 *.pdf
+
+# report drafts and the reference example stay local
+*.docx
+~$*.docx
