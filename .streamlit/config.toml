@@ -1,0 +1,14 @@
+# The simulator commits to a light, high-contrast instrument look: it is read
+# in daylight, on a laptop or a projector, next to printed lab data.
+[theme]
+base = "light"
+primaryColor = "#0891B2"
+backgroundColor = "#F4F8FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0B1F27"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

@@ -1,0 +1,10 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.streamlit/secrets.toml
+fingerprint.json
+
+# the assignment brief is the instructor's document, not ours to republish
+*.pdf
