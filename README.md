@@ -38,16 +38,44 @@ writes the choice to the URL (`?app=original`) so a specific version can be
 linked to. Use it if you want one deployment that can be flipped back to the
 original at any time.
 
-## Running it locally
+## Running it on your own computer
+
+Needs Python 3.9 or newer. Nothing else — no database, no API keys, no account.
+
+**macOS / Linux**
 
 ```bash
+git clone https://github.com/Schiffen/app_project_TAMAOR.git
+cd app_project_TAMAOR
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-
-.venv/bin/python -m streamlit run launcher.py          # both, switchable
-.venv/bin/python -m streamlit run streamlit_app.py     # enhanced only
-.venv/bin/python -m streamlit run app_co2_units_fixed.py   # original only
+.venv/bin/python -m streamlit run launcher.py
 ```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/Schiffen/app_project_TAMAOR.git
+cd app_project_TAMAOR
+py -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m streamlit run launcher.py
+```
+
+A browser tab opens at `http://localhost:8501` automatically. If it doesn't,
+open that address yourself. Press `Ctrl+C` in the terminal to stop it.
+
+The first install takes a couple of minutes (it downloads numpy, scipy, pandas,
+plotly and streamlit). After that, startup is a few seconds.
+
+To run one specific version instead of the switcher, replace `launcher.py`
+with `streamlit_app.py` (enhanced) or `app_co2_units_fixed.py` (original).
+
+### No Python? 
+
+Download the repository as a ZIP from the green **Code** button on GitHub, or
+just open the deployed link if one has been published — that needs nothing
+installed at all.
 
 ## Deploying to Streamlit Community Cloud (free)
 
