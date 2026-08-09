@@ -85,15 +85,31 @@ html, body, [class*="css"], [data-testid="stAppViewContainer"] {{
 }}
 [data-testid="stAppViewContainer"] {{ background: #F4F8FA; }}
 .block-container {{ max-width: 1480px; padding-top: 2.1rem; padding-bottom: 3rem; }}
-[data-testid="stSidebar"] {{ min-width: 306px; max-width: 306px; background: {CARD};
-    border-right: 1px solid {LINE}; }}
+/* The sidebar width is deliberately NOT pinned here. Streamlit writes its own
+   width as an inline style (300px, and whatever the reader drags it to) and
+   slides the panel shut by translating it by exactly that inline figure. Any
+   min/max-width from this stylesheet is therefore only honoured on the way in:
+   a 306px panel translated by 300px leaves a 6px strip of sidebar frozen on
+   screen, which is what made "closed" look broken rather than closed. */
+[data-testid="stSidebar"] {{ background: {CARD}; border-right: 1px solid {LINE}; }}
 [data-testid="stSidebar"] h2 {{ font-size: .74rem !important; text-transform: uppercase;
     letter-spacing: .1em; color: {INK_MUTED}; font-weight: 600; margin: .1rem 0 .3rem 0; }}
 [data-testid="stSidebar"] label {{ font-size: .8rem !important; }}
 [data-testid="stSidebar"] hr {{ margin: 1.05rem 0; }}
 
-/* Streamlit's own vendor chrome has no place on a page being read as a product */
-[data-testid="stToolbar"], [data-testid="stDecoration"] {{ display: none !important; }}
+/* Streamlit's own vendor chrome has no place on a page being read as a product.
+   It is hidden by its ACTIONS, though, never by the whole toolbar: the toolbar
+   is also where Streamlit puts stExpandSidebarButton, the single control that
+   reopens a collapsed sidebar. Hiding the toolbar outright left that button in
+   the DOM at zero size, and because the collapsed state is remembered in
+   localStorage it survives every reload — so one accidental collapse shut the
+   sidebar permanently, with nothing on the page able to bring it back. */
+[data-testid="stToolbarActions"], [data-testid="stAppDeployButton"],
+[data-testid="stMainMenu"], [data-testid="stStatusWidget"],
+[data-testid="stDecoration"] {{ display: none !important; }}
+[data-testid="stHeader"] {{ background: transparent; }}
+[data-testid="stExpandSidebarButton"] {{ opacity: .75; }}
+[data-testid="stExpandSidebarButton"]:hover {{ opacity: 1; }}
 
 /* Streamlit wraps headings in its own container whose rule outranks a bare
    h1/h3 selector, so the scale has to be addressed through that wrapper. */
@@ -119,18 +135,53 @@ h1.wm {{ font-size: 2.15rem; font-weight: 700; line-height: 1.16; letter-spacing
 /* Five tiles with an arrow gutter between each pair. The gutters are real
    grid tracks rather than absolutely-positioned decoration, so the tiles stay
    equal width and the arrows can never overlap a label. */
-.train {{ display:grid; align-items:stretch; margin:.2rem 0 0 0;
-    grid-template-columns: repeat(4, 1fr 30px) 1fr; }}
+/* The train is laid out with st.columns rather than one grid of raw HTML,
+   because each tile has to be a real Streamlit button. The tile track and the
+   arrow gutter alternate, so the weights below mirror the old 1fr / 30px grid.
+   Streamlit's own column gap is tightened here; the spacing that reads as the
+   flow gutter is the arrow column itself, not the gap. */
+.st-key-train [data-testid="stHorizontalBlock"] {{ gap:.34rem; align-items:stretch; }}
+.st-key-train [data-testid="stColumn"] {{ position:relative; }}
+/* Streamlit pulls markdown blocks up with a -16px bottom margin, which left the
+   column measuring 16px shorter than the card inside it — and therefore left the
+   bottom strip of every tile outside the overlay button and dead to the click. */
+.st-key-train [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
 .stage {{ text-decoration:none; display:flex; flex-direction:column; align-items:center;
     padding:.85rem .5rem .7rem .5rem; border:1px solid {LINE}; border-radius:14px;
     background:{CARD}; position:relative;
     transition: transform .22s cubic-bezier(.2,.8,.3,1),
                 box-shadow .22s cubic-bezier(.2,.8,.3,1), border-color .2s ease; }}
 .stage svg {{ flex:none; }}
-.stage:hover {{ transform: translateY(-3px); border-color:#C4D8E0;
-    box-shadow: 0 16px 30px -22px rgba(11,31,39,.55); }}
 .stage.on {{ border-color: transparent;
     box-shadow: inset 0 0 0 2px var(--cond), 0 16px 30px -20px rgba(11,31,39,.5); }}
+
+/* Each tile is a drawn card with a Streamlit button laid invisibly over the
+   whole of it. The click therefore reruns the script over the open websocket
+   instead of navigating the browser to a new URL, which is what previously
+   tore down and rebuilt the entire page — sidebar and session state with it.
+   The button keeps its accessible name, so the tile is still a real, focusable,
+   keyboard-operable control; only its painted surface is suppressed. */
+/* width/height are forced to auto so that inset:0 is what actually sizes the
+   overlay: Streamlit gives every element container an explicit width, and an
+   explicit width beats left:0/right:0, which otherwise leaves the tile's outer
+   rim unclickable. */
+div[class*="st-key-stagebtn-"] {{ position:absolute !important; inset:0 !important;
+    width:auto !important; height:auto !important; max-width:none !important;
+    margin:0 !important; z-index:3; }}
+div[class*="st-key-stagebtn-"] .stButton,
+div[class*="st-key-stagebtn-"] [data-testid="stButton"] {{ width:100%; height:100%; }}
+div[class*="st-key-stagebtn-"] button {{ width:100% !important; height:100% !important;
+    min-height:0 !important; opacity:0; padding:0; border:0; background:transparent;
+    cursor:pointer; }}
+
+/* Hover and focus have to be driven from the column, not from .stage: the
+   pointer rests on the overlay button, which is a sibling of the card rather
+   than a child, so .stage:hover would never match. */
+.st-key-train [data-testid="stColumn"]:has(div[class*="st-key-stagebtn-"]):hover .stage {{
+    transform: translateY(-3px); border-color:#C4D8E0;
+    box-shadow: 0 16px 30px -22px rgba(11,31,39,.55); }}
+.st-key-train [data-testid="stColumn"]:has(div[class*="st-key-stagebtn-"] button:focus-visible) .stage {{
+    outline:2px solid var(--cond); outline-offset:3px; }}
 
 /* the arrow gutter: a hairline rail with a travelling dash, so the train
    reads as a flow rather than five unrelated cards */
@@ -145,10 +196,7 @@ h1.wm {{ font-size: 2.15rem; font-weight: 700; line-height: 1.16; letter-spacing
     .flow .run {{ animation:none; stroke-dasharray:none; opacity:.55; }}
 }}
 
-/* Streamlit underlines and recolours markdown links; the stage tiles are
-   navigation, not prose, so that styling is overridden outright. */
-.stage, .stage:link, .stage:visited, .stage:hover, .stage:active,
-.stage *, .train a, .train a * {{ text-decoration: none !important; }}
+.stage, .stage * {{ text-decoration: none !important; }}
 .stage-name {{ text-align:center; font-size:.83rem; font-weight:600;
     color:{INK} !important; margin-top:.45rem; letter-spacing:-.01em; }}
 .stage-si {{ text-align:center; font-size:.9rem; color:{INK_MUTED} !important;
@@ -160,10 +208,18 @@ h1.wm {{ font-size: 2.15rem; font-weight: 700; line-height: 1.16; letter-spacing
     font-variant-numeric: tabular-nums; }}
 
 /* Below the width where five tiles can hold a legible label, the train wraps
-   to a grid and the arrow gutters are dropped rather than squeezed. */
+   and the arrow gutters are dropped rather than squeezed. Streamlit's column row
+   is already a wrapping flex container, so it is enough to give the tiles a
+   160px basis — five of them left in one row would be 97px each, narrow enough
+   that the drawn units spill out past the card edge — and to remove the arrow
+   columns entirely, since an arrow between two wrapped tiles points nowhere. */
 @media (max-width: 1120px) {{
-    .train {{ grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:.5rem; }}
     .flow {{ display:none; }}
+    .st-key-train [data-testid="stColumn"]:not(:has(div[class*="st-key-stagebtn-"])) {{
+        display:none; }}
+    .st-key-train [data-testid="stColumn"]:has(div[class*="st-key-stagebtn-"]) {{
+        flex: 1 1 160px !important; }}
+    .st-key-train [data-testid="stHorizontalBlock"] {{ gap:.5rem; }}
 }}
 
 /* ---- hero reading ------------------------------------------------------ */
@@ -1499,27 +1555,46 @@ if not np.isnan(d_val):
     )
 
 # ---- process train ---------------------------------------------------------
-if "unit" not in st.session_state:
-    st.session_state.unit = "Consumer"
-url_unit = st.query_params.get("unit")
-slug_to_key = {s[3]: s[2] for s in STAGES}
-if url_unit in slug_to_key:
-    st.session_state.unit = slug_to_key[url_unit]
+SLUG_TO_KEY = {s[3]: s[2] for s in STAGES}
 
-train = []
+# The URL seeds the selection ONCE, so a pasted or bookmarked ?unit= link opens
+# on the stage it names. It is deliberately not re-read on later reruns: the
+# tiles own the selection from then on and write the parameter back themselves,
+# and re-reading it every pass would let a stale parameter overrule a click.
+if "unit" not in st.session_state:
+    st.session_state.unit = SLUG_TO_KEY.get(st.query_params.get("unit"), "Consumer")
+
+# Alternating tile and arrow tracks, mirroring the 1fr / 30px gutter the train
+# was drawn with when it was a single CSS grid.
+_train_box = st.container(key="train")
+with _train_box:
+    _cols = st.columns([1, .11] * 4 + [1], vertical_alignment="center")
+
 for i, (label, svg, key, slug, state) in enumerate(STAGES):
     if i:
-        train.append(f'<div class="flow">{svg_flow()}</div>')
+        with _cols[2 * i - 1]:
+            st.markdown(f'<div class="flow">{svg_flow()}</div>', unsafe_allow_html=True)
     col = cond_color(state)
     met = sum(1 for r in drink_report(state) if r[4] == "ok")
     on = " on" if st.session_state.unit == key else ""
-    train.append(
-        f'<a class="stage{on}" href="?unit={slug}" target="_self" style="--cond:{col}">'
-        f'{svg}<div class="stage-name">{label}</div>'
-        f'<div class="stage-si">SI <b>{fmt_signed(state["SI"])}</b></div>'
-        f'<div class="stage-ccpp">{met}/{len(DRINK_CRITERIA)} drinking criteria</div></a>'
-    )
-st.markdown(f'<div class="train">{"".join(train)}</div>', unsafe_allow_html=True)
+    with _cols[2 * i]:
+        st.markdown(
+            f'<div class="stage{on}" style="--cond:{col}">'
+            f'{svg}<div class="stage-name">{label}</div>'
+            f'<div class="stage-si">SI <b>{fmt_signed(state["SI"])}</b></div>'
+            f'<div class="stage-ccpp">{met}/{len(DRINK_CRITERIA)} drinking criteria</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        # Sits invisibly over the card above (see the .st-key-stagebtn- rules).
+        # A button reruns the script in place; the anchor this replaced navigated
+        # the browser, which discarded the session — doses, optimiser result and
+        # the reader's sidebar all went with it on every single tile click.
+        if st.button(f"Inspect {label}", key=f"stagebtn-{slug}"):
+            st.session_state.unit = key
+            st.query_params["unit"] = slug
+            st.rerun()
+
 st.caption("Select a unit to inspect the water at that point in the train.")
 
 # ---- condition band + readout ---------------------------------------------
